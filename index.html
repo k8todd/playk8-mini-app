@@ -371,12 +371,6 @@
       loadGame();
     });
     
-    // メインボタンクリックイベントを追加
-    tg.MainButton.onClick(() => {
-      // ゲームリンクをシェア
-      tg.sendData(JSON.stringify({action: 'share_game'}));
-    });
-    
     // バックボタン処理を追加
     tg.BackButton.onClick(() => {
       // エラーメッセージが表示されている場合は非表示にする

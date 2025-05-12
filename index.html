@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -19,8 +19,6 @@
       width: 100%;
       overflow: hidden;
       background-color: #121212;
-      color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     }
     
     .container {
@@ -70,100 +68,6 @@
       border: none;
     }
     
-    .welcome {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      background-color: #121212;
-      z-index: 2000;
-      padding-bottom: 20px;
-    }
-    
-    .banner-container {
-      width: 100%;
-      border-radius: 16px;
-      overflow: hidden;
-      margin-top: 0px;
-    }
-    
-    .banner-image {
-      width: 100%;
-      border-radius: 16px;
-      display: block;
-    }
-    
-    .welcome-content {
-      padding: 15px;
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-    
-    .content-container {
-      background-color: rgba(0, 0, 0, 0.6);
-      border-radius: 16px;
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      margin: 10px 15px;
-    }
-    
-    .banner-container {
-      width: 100%;
-      overflow: hidden;
-    }
-    
-    .banner-image {
-      width: 100%;
-      display: block;
-    }
-    
-    .text-container {
-      padding: 15px;
-    }
-    
-    .welcome-content h1 {
-      font-size: 20px;
-      margin-bottom: 10px;
-      color: #ffffff;
-      text-align: left;
-    }
-    
-    .welcome-content p {
-      font-size: 16px;
-      color: #ffffff;
-      line-height: 1.4;
-      text-align: left;
-    }
-    
-    .start-button-container {
-      padding: 0 20px;
-      margin-bottom: 20px;
-    }
-    
-    .start-button {
-      width: 100%;
-      padding: 16px 24px;
-      background-color: #E6601B;
-      color: #ffffff;
-      border: none;
-      border-radius: 8px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: opacity 0.2s ease;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    
-    .start-button:hover {
-      opacity: 0.9;
-    }
-    
     .error-message {
       display: none;
       text-align: center;
@@ -190,72 +94,17 @@
       font-size: 14px;
       cursor: pointer;
     }
-    
-    .instruction-text {
-      text-align: center;
-      color: #888888;
-      font-size: 14px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: float 1.5s ease-in-out infinite;
-    }
-    
-    @keyframes float {
-      0% {
-        transform: translateY(0px);
-      }
-      50% {
-        transform: translateY(-6px);
-      }
-      100% {
-        transform: translateY(0px);
-      }
-    }
-    
-    .arrow-down {
-      width: 20px;
-      height: 20px;
-      margin-right: 5px;
-      fill: #888888;
-    }
   </style>
 </head>
 <body>
-  <div class="welcome" id="welcome">
-    <div class="welcome-content">
-      <div class="content-container">
-        <div class="banner-container">
-          <img class="banner-image" src="https://casinogamesk8.imgix.net/live/image/imgix/promo/2025/%E6%8C%87%E5%AE%9A%E4%B8%8A%E7%BA%A7%E6%B3%A8%E5%86%8C%E9%80%8140/%E3%83%AC%E3%82%A2%E5%BA%A6MAX%EF%BC%81%E7%A9%B6%E6%A5%B5%E3%81%AE%E3%82%A6%E3%82%A7%E3%83%AB%E3%82%AB%E3%83%A0%E7%89%B9%E5%85%B8-$40_QFk9250116050844.jpg" alt="カジノプロモーション">
-        </div>
-        <div class="text-container">
-          <h1>🎲 家で楽しむ本格カジノ体験！ 🎲</h1>
-          <p>下のボタンをクリックして、ゲームの旅を始めましょう！</p>
-        </div>
-      </div>
-    </div>
-    
-    <div class="instruction-text">
-      <svg class="arrow-down" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-      </svg>
-      ここをタップして、ボットを使ってみよう！
-    </div>
-    
-    <div class="start-button-container">
-      <button id="startButton" class="start-button">ゲームを始める</button>
-    </div>
-  </div>
-  
-  <div class="loading" id="loading" style="display: none;">
+  <div class="loading" id="loading">
     <div class="spinner"></div>
-    <div class="loading-text">ゲームを読み込み中です。少々お待ちください...</div>
+    <div class="loading-text" id="loadingText">Loading game, please wait...</div>
   </div>
   
   <div class="error-message" id="errorMessage">
-    <div id="errorText">読み込みに失敗しました。ネットワーク接続を確認してください</div>
-    <button id="retryButton">再試行</button>
+    <div id="errorText">Failed to load. Please check your network connection.</div>
+    <button id="retryButton">Retry</button>
   </div>
   
   <div class="container">
@@ -266,29 +115,57 @@
     // Telegram WebAppの初期化
     const tg = window.Telegram.WebApp;
     
+    // 获取用户语言
+    const userLang = tg.initDataUnsafe?.user?.language_code || 'en';
+    
+    // 语言文本配置
+    const translations = {
+      en: {
+        loading: 'Loading game, please wait...',
+        error: 'Failed to load. Please check your network connection.',
+        retry: 'Retry',
+        share: 'Share Game',
+        exitConfirm: 'Are you sure you want to exit the game?',
+        timeout: 'Loading timeout. Please check your network connection.'
+      },
+      ja: {
+        loading: 'ゲームを読み込み中です。少々お待ちください...',
+        error: '読み込みに失敗しました。ネットワーク接続を確認してください',
+        retry: '再試行',
+        share: 'ゲームをシェア',
+        exitConfirm: 'ゲームを終了してもよろしいですか？',
+        timeout: '読み込み時間が長すぎます。ネットワーク接続を確認してください'
+      },
+      zh: {
+        loading: '正在加载游戏，请稍候...',
+        error: '加载失败。请检查您的网络连接。',
+        retry: '重试',
+        share: '分享游戏',
+        exitConfirm: '确定要退出游戏吗？',
+        timeout: '加载超时。请检查您的网络连接。'
+      }
+    };
+    
+    // 获取当前语言的文本
+    const t = translations[userLang] || translations.en;
+    
+    // 更新页面文本
+    document.getElementById('loadingText').textContent = t.loading;
+    document.getElementById('errorText').textContent = t.error;
+    document.getElementById('retryButton').textContent = t.retry;
+    
     // WebAppをフルスクリーンに展開
     tg.expand();
     
     // 要素の取得
     const gameFrame = document.getElementById('gameFrame');
     const loadingElement = document.getElementById('loading');
-    const welcomeScreen = document.getElementById('welcome');
-    const startButton = document.getElementById('startButton');
     const errorMessage = document.getElementById('errorMessage');
     const errorText = document.getElementById('errorText');
     const retryButton = document.getElementById('retryButton');
     
     // ゲームURL
     const gameUrl = 'https://playk8.io/';
-    
-    // 通知を表示
-    function showNotification(message) {
-      tg.showPopup({
-        title: 'PlayK8',
-        message: message,
-        buttons: [{type: 'ok'}]
-      });
-    }
     
     // エラーメッセージを表示
     function showError(message) {
@@ -299,14 +176,13 @@
     
     // ゲームを読み込む
     function loadGame() {
-      welcomeScreen.style.display = 'none';
       loadingElement.style.display = 'flex';
       gameFrame.src = gameUrl;
       
       // 読み込みタイムアウトを設定
       const loadTimeout = setTimeout(() => {
         if (loadingElement.style.display !== 'none') {
-          showError('読み込み時間が長すぎます。ネットワーク接続を確認してください');
+          showError(t.timeout);
         }
       }, 20000); // 20秒タイムアウト
       
@@ -320,7 +196,7 @@
         
         // メインボタンを設定
         setTimeout(() => {
-          tg.MainButton.setText('ゲームをシェア');
+          tg.MainButton.setText(t.share);
           tg.MainButton.show();
         }, 1000);
       };
@@ -328,7 +204,7 @@
       // iframe読み込みエラー処理
       gameFrame.onerror = () => {
         clearTimeout(loadTimeout);
-        showError('ゲームの読み込みに失敗しました。再試行してください');
+        showError(t.error);
       };
     }
     
@@ -343,27 +219,20 @@
     
     // ゲームからのメッセージをリスニング
     window.addEventListener('message', function(event) {
-      // メッセージの発信元がゲームWebサイトであることを確認
       if (event.origin !== gameUrl.replace(/^https?:\/\//, '')) return;
       
-      // ゲームイベントを処理
       if (event.data && event.data.type) {
         switch (event.data.type) {
           case 'gameLoaded':
             loadingElement.style.display = 'none';
             break;
           case 'gameEvent':
-            // ゲームイベントを処理
             break;
           case 'gameScore':
-            // Telegramにスコアを報告可能
             break;
         }
       }
     });
-    
-    // ボタンクリックイベントを追加
-    startButton.addEventListener('click', loadGame);
     
     // 再試行ボタンクリックイベントを追加
     retryButton.addEventListener('click', () => {
@@ -373,19 +242,17 @@
     
     // バックボタン処理を追加
     tg.BackButton.onClick(() => {
-      // エラーメッセージが表示されている場合は非表示にする
       if (errorMessage.style.display !== 'none') {
         errorMessage.style.display = 'none';
-        welcomeScreen.style.display = 'flex';
+        loadGame();
         return;
       }
       
-      // ゲーム内にいる場合、確認を求める
       if (gameFrame.src.includes(gameUrl)) {
-        tg.showConfirm('ゲームを終了してもよろしいですか？', (confirmed) => {
+        tg.showConfirm(t.exitConfirm, (confirmed) => {
           if (confirmed) {
             gameFrame.src = 'about:blank';
-            welcomeScreen.style.display = 'flex';
+            loadGame();
             tg.MainButton.hide();
           }
         });
@@ -394,6 +261,9 @@
     
     // Botからのデータをリスニング
     tg.onEvent('viewportChanged', resizeIframe);
+    
+    // ページ読み込み時に直接ゲームを開始
+    window.addEventListener('load', loadGame);
   </script>
 </body>
 </html>

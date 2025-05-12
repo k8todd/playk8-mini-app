@@ -39,7 +39,6 @@
       bottom: 0;
       background-color: #121212;
       z-index: 1000;
-      flex-direction: column;
     }
     
     .spinner {
@@ -49,12 +48,6 @@
       border-radius: 50%;
       border-top-color: #E6601B;
       animation: spin 1s ease-in-out infinite;
-      margin-bottom: 15px;
-    }
-    
-    .loading-text {
-      color: #ffffff;
-      font-size: 16px;
     }
     
     @keyframes spin {
@@ -67,44 +60,11 @@
       height: 100%;
       border: none;
     }
-    
-    .error-message {
-      display: none;
-      text-align: center;
-      padding: 20px;
-      color: #ff3b30;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-color: #121212;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      max-width: 80%;
-      z-index: 3000;
-    }
-    
-    .error-message button {
-      margin-top: 15px;
-      padding: 8px 16px;
-      background-color: #E6601B;
-      color: #ffffff;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
   <div class="loading" id="loading">
     <div class="spinner"></div>
-    <div class="loading-text" id="loadingText">Loading game, please wait...</div>
-  </div>
-  
-  <div class="error-message" id="errorMessage">
-    <div id="errorText">Failed to load. Please check your network connection.</div>
-    <button id="retryButton">Retry</button>
   </div>
   
   <div class="container">
@@ -121,38 +81,18 @@
     // 语言文本配置
     const translations = {
       en: {
-        loading: 'Loading game, please wait...',
-        error: 'Failed to load. Please check your network connection.',
-        retry: 'Retry',
-        share: 'Share Game',
-        exitConfirm: 'Are you sure you want to exit the game?',
-        timeout: 'Loading timeout. Please check your network connection.'
+        exitConfirm: 'Are you sure you want to exit the game?'
       },
       ja: {
-        loading: 'ゲームを読み込み中です。少々お待ちください...',
-        error: '読み込みに失敗しました。ネットワーク接続を確認してください',
-        retry: '再試行',
-        share: 'ゲームをシェア',
-        exitConfirm: 'ゲームを終了してもよろしいですか？',
-        timeout: '読み込み時間が長すぎます。ネットワーク接続を確認してください'
+        exitConfirm: 'ゲームを終了してもよろしいですか？'
       },
       zh: {
-        loading: '正在加载游戏，请稍候...',
-        error: '加载失败。请检查您的网络连接。',
-        retry: '重试',
-        share: '分享游戏',
-        exitConfirm: '确定要退出游戏吗？',
-        timeout: '加载超时。请检查您的网络连接。'
+        exitConfirm: '确定要退出游戏吗？'
       }
     };
     
     // 获取当前语言的文本
     const t = translations[userLang] || translations.en;
-    
-    // 更新页面文本
-    document.getElementById('loadingText').textContent = t.loading;
-    document.getElementById('errorText').textContent = t.error;
-    document.getElementById('retryButton').textContent = t.retry;
     
     // WebAppをフルスクリーンに展開
     tg.expand();
@@ -160,51 +100,19 @@
     // 要素の取得
     const gameFrame = document.getElementById('gameFrame');
     const loadingElement = document.getElementById('loading');
-    const errorMessage = document.getElementById('errorMessage');
-    const errorText = document.getElementById('errorText');
-    const retryButton = document.getElementById('retryButton');
     
     // ゲームURL
     const gameUrl = 'https://playk8.io/';
-    
-    // エラーメッセージを表示
-    function showError(message) {
-      loadingElement.style.display = 'none';
-      errorText.textContent = message;
-      errorMessage.style.display = 'block';
-    }
     
     // ゲームを読み込む
     function loadGame() {
       loadingElement.style.display = 'flex';
       gameFrame.src = gameUrl;
       
-      // 読み込みタイムアウトを設定
-      const loadTimeout = setTimeout(() => {
-        if (loadingElement.style.display !== 'none') {
-          showError(t.timeout);
-        }
-      }, 20000); // 20秒タイムアウト
-      
       // iframeが読み込み完了したとき
       gameFrame.onload = () => {
-        clearTimeout(loadTimeout);
         loadingElement.style.display = 'none';
-        
-        // Telegram WebAppに準備完了を通知
         tg.ready();
-        
-        // メインボタンを設定
-        setTimeout(() => {
-          tg.MainButton.setText(t.share);
-          tg.MainButton.show();
-        }, 1000);
-      };
-      
-      // iframe読み込みエラー処理
-      gameFrame.onerror = () => {
-        clearTimeout(loadTimeout);
-        showError(t.error);
       };
     }
     
@@ -217,43 +125,13 @@
     resizeIframe();
     window.addEventListener('resize', resizeIframe);
     
-    // ゲームからのメッセージをリスニング
-    window.addEventListener('message', function(event) {
-      if (event.origin !== gameUrl.replace(/^https?:\/\//, '')) return;
-      
-      if (event.data && event.data.type) {
-        switch (event.data.type) {
-          case 'gameLoaded':
-            loadingElement.style.display = 'none';
-            break;
-          case 'gameEvent':
-            break;
-          case 'gameScore':
-            break;
-        }
-      }
-    });
-    
-    // 再試行ボタンクリックイベントを追加
-    retryButton.addEventListener('click', () => {
-      errorMessage.style.display = 'none';
-      loadGame();
-    });
-    
     // バックボタン処理を追加
     tg.BackButton.onClick(() => {
-      if (errorMessage.style.display !== 'none') {
-        errorMessage.style.display = 'none';
-        loadGame();
-        return;
-      }
-      
       if (gameFrame.src.includes(gameUrl)) {
         tg.showConfirm(t.exitConfirm, (confirmed) => {
           if (confirmed) {
             gameFrame.src = 'about:blank';
             loadGame();
-            tg.MainButton.hide();
           }
         });
       }

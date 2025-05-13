@@ -8,125 +8,74 @@
   <link rel="preconnect" href="https://k8play7.com/">
   <link rel="dns-prefetch" href="https://k8play7.com/">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body, html {
-      height: 100%;
-      width: 100%;
-      background-color: #121212;
-    }
-    
-    .container {
-      display: flex;
-      flex-direction: column;
-      min-height: 100%;
-      width: 100%;
-    }
-    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { height: 100%; width: 100%; background-color: #121212; }
+    .container { display: flex; flex-direction: column; min-height: 100%; width: 100%; }
     .loading {
       display: flex;
       justify-content: center;
       align-items: center;
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background-color: #121212;
       z-index: 1000;
     }
-    
     .spinner {
-      width: 50px;
-      height: 50px;
+      width: 50px; height: 50px;
       border: 5px solid rgba(255, 255, 255, 0.1);
       border-radius: 50%;
       border-top-color: #E6601B;
       animation: spin 1s ease-in-out infinite;
     }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    iframe {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    iframe { flex: 1; width: 100%; height: 100%; border: none; }
   </style>
 </head>
 <body>
   <div class="loading" id="loading">
     <div class="spinner"></div>
   </div>
-  
   <div class="container">
     <iframe id="gameFrame" src="about:blank" allowfullscreen></iframe>
   </div>
 
   <script>
-    // Telegram WebAppの初期化
     const tg = window.Telegram.WebApp;
-    
-    // 获取用户语言
-    const userLang = tg.initDataUnsafe?.user?.language_code || 'en';
-    
-    // 语言文本配置
-    const translations = {
-      en: {
-        exitConfirm: 'Are you sure you want to exit the game?'
-      },
-      ja: {
-        exitConfirm: 'ゲームを終了してもよろしいですか？'
-      },
-      zh: {
-        exitConfirm: '确定要退出游戏吗？'
-      }
-    };
-    
-    // 获取当前语言的文本
-    const t = translations[userLang] || translations.en;
-    
-    // WebAppをフルスクリーンに展開
     tg.expand();
-    
-    // 要素の取得
+    const param = tg.initDataUnsafe?.start_param;
+
+    const userLang = tg.initDataUnsafe?.user?.language_code || 'en';
+    const translations = {
+      en: { exitConfirm: 'Are you sure you want to exit the game?' },
+      ja: { exitConfirm: 'ゲームを終了してもよろしいですか？' },
+      zh: { exitConfirm: '确定要退出游戏吗？' }
+    };
+    const t = translations[userLang] || translations.en;
+
     const gameFrame = document.getElementById('gameFrame');
     const loadingElement = document.getElementById('loading');
-    
-    // ゲームURL
-    const gameUrl = 'https://k8play7.com/';
-    
-    // ゲームを読み込む
+
+    const baseGameUrl = 'https://k8play7.com/';
+    const gameUrl = param ? `${baseGameUrl}?invite=${encodeURIComponent(param)}` : baseGameUrl;
+
     function loadGame() {
       loadingElement.style.display = 'flex';
       gameFrame.src = gameUrl;
-      
-      // iframeが読み込み完了したとき
       gameFrame.onload = () => {
         loadingElement.style.display = 'none';
         tg.ready();
       };
     }
-    
-    // iframeの高さを利用可能なスペースに設定
+
     function resizeIframe() {
       gameFrame.style.height = window.innerHeight + 'px';
     }
-    
-    // 初期サイズ調整とウィンドウサイズ変更のリスナー設定
+
     resizeIframe();
     window.addEventListener('resize', resizeIframe);
-    
-    // バックボタン処理を追加
+
     tg.BackButton.onClick(() => {
-      if (gameFrame.src.includes(gameUrl)) {
+      if (gameFrame.src.includes(baseGameUrl)) {
         tg.showConfirm(t.exitConfirm, (confirmed) => {
           if (confirmed) {
             gameFrame.src = 'about:blank';
@@ -135,11 +84,8 @@
         });
       }
     });
-    
-    // Botからのデータをリスニング
+
     tg.onEvent('viewportChanged', resizeIframe);
-    
-    // ページ読み込み時に直接ゲームを開始
     window.addEventListener('load', loadGame);
   </script>
 </body>

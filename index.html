@@ -213,6 +213,50 @@
     }
     
     /* 移除按钮hover提示标签 */
+    
+    /* 快捷键帮助提示 */
+    .shortcut-help {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 12px;
+      display: none;
+      z-index: 1003;
+      max-width: 300px;
+    }
+    
+    .shortcut-help.show {
+      display: block;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .shortcut-help-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .shortcut-help-item {
+      margin: 4px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .shortcut-help-key {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
   </style>
 </head>
 <body>
@@ -253,6 +297,32 @@
         <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
       </svg>
     </div>
+    
+    <!-- 快捷键帮助提示 -->
+    <div class="shortcut-help" id="shortcutHelp">
+      <div class="shortcut-help-title">键盘快捷键</div>
+      <div class="shortcut-help-item">
+        <span>后退</span>
+        <span class="shortcut-help-key">Ctrl+B / ESC</span>
+      </div>
+      <div class="shortcut-help-item">
+        <span>首页</span>
+        <span class="shortcut-help-key">Ctrl+H</span>
+      </div>
+      <div class="shortcut-help-item">
+        <span>钱包</span>
+        <span class="shortcut-help-key">Ctrl+W</span>
+      </div>
+      <div class="shortcut-help-item">
+        <span>收藏</span>
+        <span class="shortcut-help-key">Ctrl+F</span>
+      </div>
+      <div class="shortcut-help-item">
+        <span>切换菜单</span>
+        <span class="shortcut-help-key">Ctrl+M</span>
+      </div>
+    </div>
+    
     <iframe id="gameFrame" src="about:blank" allowfullscreen allow="camera; microphone; geolocation; payment; usb; magnetometer; gyroscope; accelerometer; ambient-light-sensor; autoplay; encrypted-media; midi; sync-xhr; clipboard-read; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-top-navigation"></iframe>
   </div>
 
@@ -279,6 +349,7 @@
     const walletBtn = document.getElementById('walletBtn');
     const favoritesBtn = document.getElementById('favoritesBtn');
     const homeBtn = document.getElementById('homeBtn');
+    const shortcutHelp = document.getElementById('shortcutHelp');
     
     // 快捷按钮状态 - 默认收起
     let isShortcutCollapsed = true;
@@ -1324,8 +1395,8 @@
     let lastShortcutState = null;
     
     function toggleShortcutButtons(show) {
-      // 快捷按钮完全写死，不做任何操作
-      // 移除所有判断和监测逻辑
+      // 快捷按钮保持始终显示，但后退按钮根据导航历史显示
+      console.log('toggleShortcutButtons被调用:', show);
     }
     
     // 快捷按钮收起/展开功能
@@ -1413,6 +1484,9 @@
       // 设置默认收起状态
       shortcutButtons.classList.add('collapsed');
       shortcutToggle.classList.add('expanded');
+      
+      // 初始化后退按钮为隐藏状态
+      backButton.style.display = 'none';
       
       console.log('快捷按钮已完全写死显示');
     }
@@ -1538,6 +1612,68 @@
     setTimeout(() => {
       initShortcutButtonsDisplay();
     }, 100);
+    
+    // 添加全局键盘快捷键支持
+    let helpTimeout;
+    document.addEventListener('keydown', (event) => {
+      // 检查是否按下了Ctrl/Cmd键
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+      
+      // 显示快捷键帮助（按住Ctrl/Cmd键1秒）
+      if (modifierKey && !event.repeat) {
+        helpTimeout = setTimeout(() => {
+          shortcutHelp.classList.add('show');
+        }, 1000);
+      }
+      
+      if (modifierKey) {
+        switch(event.key.toLowerCase()) {
+          case 'b': // Ctrl/Cmd + B: 后退
+            event.preventDefault();
+            if (currentHistoryIndex > 0) {
+              handleBack();
+            }
+            break;
+            
+          case 'h': // Ctrl/Cmd + H: 返回首页
+            event.preventDefault();
+            homeBtn.click();
+            break;
+            
+          case 'w': // Ctrl/Cmd + W: 打开钱包
+            event.preventDefault();
+            walletBtn.click();
+            break;
+            
+          case 'f': // Ctrl/Cmd + F: 打开收藏
+            event.preventDefault();
+            event.stopPropagation(); // 阻止浏览器默认的查找功能
+            favoritesBtn.click();
+            break;
+            
+          case 'm': // Ctrl/Cmd + M: 切换快捷按钮显示/隐藏
+            event.preventDefault();
+            shortcutToggle.click();
+            break;
+        }
+      }
+      
+      // ESC键：后退或退出
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleBack();
+      }
+    }, true); // 使用捕获阶段，确保优先处理
+    
+    // 释放Ctrl/Cmd键时隐藏帮助
+    document.addEventListener('keyup', (event) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      if ((isMac && event.key === 'Meta') || (!isMac && event.key === 'Control')) {
+        clearTimeout(helpTimeout);
+        shortcutHelp.classList.remove('show');
+      }
+    }, true);
     
     // 全局错误处理
     window.addEventListener('error', (event) => {

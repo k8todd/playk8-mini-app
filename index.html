@@ -42,21 +42,45 @@
     /* 快捷按钮容器 */
     .shortcut-buttons {
       position: fixed;
-      top: 50%;
+      bottom: 20px;
       right: 10px;
-      transform: translateY(-50%);
       display: none;
-      flex-direction: column;
-      gap: 10px;
+      flex-direction: row;
+      gap: 15px;
       z-index: 1001;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 25px;
+      backdrop-filter: blur(10px);
+    }
+    
+    /* 底部导航样式 - 模拟写死在iframe内的效果 */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: none;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 20px;
+      z-index: 1002;
+      backdrop-filter: blur(15px);
+    }
+    
+    .bottom-nav.active {
+      display: flex;
     }
     
 
     
     /* 快捷按钮样式 */
     .shortcut-btn {
-      width: 58px;
-      height: 58px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       background: linear-gradient(135deg, #cc004a, #ff0066);
       border: 2px solid rgba(255, 255, 255, 0.3);
@@ -66,7 +90,36 @@
       cursor: pointer;
       transition: all 0.3s ease;
       box-shadow: 0 4px 12px rgba(204, 0, 74, 0.4);
-      opacity: 0.76;
+      opacity: 0.9;
+    }
+    
+    /* 底部导航按钮 */
+    .nav-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: rgba(255, 255, 255, 0.6);
+      background: transparent;
+      border: none;
+      font-size: 11px;
+    }
+    
+    .nav-btn:hover, .nav-btn.active {
+      color: #ff0066;
+      background: rgba(255, 0, 102, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .nav-btn svg {
+      width: 24px;
+      height: 24px;
+      margin-bottom: 4px;
+      fill: currentColor;
     }
     
     .shortcut-btn:hover {
@@ -138,6 +191,37 @@
         </svg>
       </div>
     </div>
+    
+    <!-- 底部导航栏 - 模拟写死在iframe内的效果 -->
+    <div class="bottom-nav" id="bottomNav">
+      <button class="nav-btn" id="navHome">
+        <svg viewBox="0 0 24 24">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+        首页
+      </button>
+      
+      <button class="nav-btn" id="navWallet">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+        </svg>
+        钱包
+      </button>
+      
+      <button class="nav-btn" id="navFavorites">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+        收藏
+      </button>
+      
+      <button class="nav-btn" id="navMenu">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+        </svg>
+        菜单
+      </button>
+    </div>
     <iframe id="gameFrame" src="about:blank" allowfullscreen allow="camera; microphone; geolocation; payment; usb; magnetometer; gyroscope; accelerometer; ambient-light-sensor; autoplay; encrypted-media; midi; sync-xhr; clipboard-read; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-top-navigation"></iframe>
   </div>
 
@@ -160,9 +244,16 @@
     const gameFrame = document.getElementById('gameFrame');
     const backButton = document.getElementById('backButton');
     const shortcutButtons = document.getElementById('shortcutButtons');
+    const bottomNav = document.getElementById('bottomNav');
     const walletBtn = document.getElementById('walletBtn');
     const favoritesBtn = document.getElementById('favoritesBtn');
     const homeBtn = document.getElementById('homeBtn');
+    
+    // 底部导航按钮
+    const navHome = document.getElementById('navHome');
+    const navWallet = document.getElementById('navWallet');
+    const navFavorites = document.getElementById('navFavorites');
+    const navMenu = document.getElementById('navMenu');
 
     // 构建包含用户信息的游戏URL
     const baseGameUrl = 'https://k8play7.com/';
@@ -308,8 +399,8 @@
           // 检查并处理自动登录
           checkAndHandleAutoLogin();
           
-              // 初始化快捷按钮
-    initShortcutButtons();
+              // 初始化导航按钮
+    initNavigationButtons();
     
     // 主动检测当前URL状态
     setTimeout(() => {
@@ -1259,62 +1350,139 @@
       }
     }
     
-    // 显示/隐藏快捷按钮
+    // 显示/隐藏导航按钮
     let lastShortcutState = null;
+    let currentUrl = '';
     
-    function toggleShortcutButtons(show) {
+    function toggleNavigationButtons(show, url = '') {
       if (show !== lastShortcutState) {
         lastShortcutState = show;
+        currentUrl = url;
+        
         if (show) {
-          shortcutButtons.style.display = 'flex';
-          console.log('显示快捷按钮 - 检测到外部游戏域名');
-        } else {
+          // 使用底部导航栏（模拟写死在iframe内）
+          bottomNav.classList.add('active');
           shortcutButtons.style.display = 'none';
-          console.log('隐藏快捷按钮 - 返回K8Play主站');
+          
+          // 调整iframe高度，为底部导航留出空间
+          gameFrame.style.height = 'calc(100vh - 60px)';
+          
+          console.log('显示底部导航 - 检测到外部游戏域名:', url);
+        } else {
+          // 隐藏导航，回到k8play7.com
+          bottomNav.classList.remove('active');
+          shortcutButtons.style.display = 'none';
+          
+          // 恢复iframe高度
+          gameFrame.style.height = '100vh';
+          
+          console.log('隐藏导航 - 返回K8Play主站');
         }
       }
     }
     
-    // 快捷按钮功能
-    function initShortcutButtons() {
-      // 钱包按钮 - 打开充值弹窗
-      walletBtn.addEventListener('click', () => {
-        trackEvent('shortcut_wallet_clicked');
-        const walletUrl = `${baseGameUrl}?modal=wallet&tab=deposit`;
-        gameFrame.src = walletUrl;
-        console.log('打开钱包充值页面:', walletUrl);
-      });
-      
-      // 收藏按钮 - 打开收藏页面
-      favoritesBtn.addEventListener('click', () => {
-        trackEvent('shortcut_favorites_clicked');
-        const favoritesUrl = `${baseGameUrl}games/favorites/`;
-        gameFrame.src = favoritesUrl;
-        console.log('打开收藏页面:', favoritesUrl);
-      });
-      
-      // 首页按钮 - 返回首页（带确认）
-      homeBtn.addEventListener('click', () => {
-        trackEvent('shortcut_home_clicked');
-        
-        // 显示确认弹窗
+    // 兼容旧的函数名
+    function toggleShortcutButtons(show) {
+      toggleNavigationButtons(show, currentUrl);
+    }
+    
+    // 导航按钮功能
+    function initNavigationButtons() {
+      // 底部导航 - 首页按钮
+      navHome.addEventListener('click', () => {
+        trackEvent('bottom_nav_home_clicked');
         const confirmMessage = {
-          en: 'Are you sure you want to return to the homepage? Current game progress will be lost.',
-          ja: 'ホームページに戻りますか？現在のゲームの進行状況は失われます。',
+          en: 'Return to homepage? Game progress will be lost.',
+          ja: 'ホームページに戻りますか？',
           zh: '确定要返回首页吗？当前游戏进度将会丢失。'
         };
         
         tg.showConfirm(confirmMessage[userLang] || confirmMessage.en, (confirmed) => {
           if (confirmed) {
-            trackEvent('shortcut_home_confirmed');
             gameFrame.src = 'https://k8play7.com/';
-            console.log('返回首页: https://k8play7.com/');
-          } else {
-            trackEvent('shortcut_home_cancelled');
+            updateActiveNavButton(navHome);
           }
         });
       });
+      
+      // 底部导航 - 钱包按钮
+      navWallet.addEventListener('click', () => {
+        trackEvent('bottom_nav_wallet_clicked');
+        const walletUrl = `${baseGameUrl}?modal=wallet&tab=deposit`;
+        gameFrame.src = walletUrl;
+        updateActiveNavButton(navWallet);
+        console.log('打开钱包充值页面:', walletUrl);
+      });
+      
+      // 底部导航 - 收藏按钮
+      navFavorites.addEventListener('click', () => {
+        trackEvent('bottom_nav_favorites_clicked');
+        const favoritesUrl = `${baseGameUrl}games/favorites/`;
+        gameFrame.src = favoritesUrl;
+        updateActiveNavButton(navFavorites);
+        console.log('打开收藏页面:', favoritesUrl);
+      });
+      
+      // 底部导航 - 菜单按钮
+      navMenu.addEventListener('click', () => {
+        trackEvent('bottom_nav_menu_clicked');
+        // 显示菜单选项
+        const menuOptions = {
+          title: '游戏菜单',
+          message: '请选择操作',
+          buttons: [
+            { id: 'refresh', type: 'default', text: '刷新游戏' },
+            { id: 'support', type: 'default', text: '客服支持' },
+            { id: 'settings', type: 'default', text: '设置' },
+            { type: 'cancel' }
+          ]
+        };
+        
+        tg.showPopup(menuOptions, (buttonId) => {
+          switch(buttonId) {
+            case 'refresh':
+              gameFrame.src = gameFrame.src;
+              break;
+            case 'support':
+              tg.openLink('https://t.me/k8play7_bot');
+              break;
+            case 'settings':
+              const settingsUrl = `${baseGameUrl}settings/`;
+              gameFrame.src = settingsUrl;
+              break;
+          }
+        });
+      });
+      
+      // 快捷按钮（右侧悬浮）- 保留原有功能
+      walletBtn?.addEventListener('click', () => {
+        trackEvent('shortcut_wallet_clicked');
+        const walletUrl = `${baseGameUrl}?modal=wallet&tab=deposit`;
+        gameFrame.src = walletUrl;
+      });
+      
+      favoritesBtn?.addEventListener('click', () => {
+        trackEvent('shortcut_favorites_clicked');
+        const favoritesUrl = `${baseGameUrl}games/favorites/`;
+        gameFrame.src = favoritesUrl;
+      });
+      
+      homeBtn?.addEventListener('click', () => {
+        trackEvent('shortcut_home_clicked');
+        gameFrame.src = 'https://k8play7.com/';
+      });
     }
+    
+    // 更新活跃导航按钮状态
+    function updateActiveNavButton(activeBtn) {
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      activeBtn.classList.add('active');
+    }
+    
+    // 兼容旧函数名
+    const initShortcutButtons = initNavigationButtons;
 
     // 增强的导航跟踪（处理SPA应用）
     function enhancedNavigationTracking() {

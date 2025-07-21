@@ -367,15 +367,6 @@
           console.log('8秒后强制显示快捷按钮（备用方案）');
           toggleShortcutButtons(true);
           
-          // 更新调试信息
-          if (window.debugInfo) {
-            window.debugInfo.innerHTML = `
-              <div>主iframe URL: ${currentSrc}</div>
-              <div>主iframe是否外部: ${isExternal}</div>
-              <div>快捷按钮显示: ${shortcutButtons.style.display}</div>
-              <div>强制显示: 已启用（8秒延迟）</div>
-            `;
-          }
         }, 8000);
         
         // 监听游戏加载完成事件
@@ -395,14 +386,6 @@
               console.log('检测到游戏对象，显示快捷按钮');
               toggleShortcutButtons(true);
               
-              if (window.debugInfo) {
-                window.debugInfo.innerHTML = `
-                  <div>主iframe URL: ${currentSrc}</div>
-                  <div>主iframe是否外部: ${isExternal}</div>
-                  <div>快捷按钮显示: ${shortcutButtons.style.display}</div>
-                  <div>强制显示: 检测到游戏对象</div>
-                `;
-              }
               return true;
             }
           } catch (e) {
@@ -423,31 +406,6 @@
           clearInterval(gameCheckInterval);
         }, 10000);
         
-        // 添加调试信息到页面
-        const debugInfo = document.createElement('div');
-        debugInfo.style.cssText = `
-          position: fixed;
-          top: 50px;
-          left: 10px;
-          background: rgba(0,0,0,0.8);
-          color: white;
-          padding: 10px;
-          border-radius: 5px;
-          font-size: 12px;
-          z-index: 10000;
-          max-width: 300px;
-          word-break: break-all;
-        `;
-        debugInfo.innerHTML = `
-          <div>主iframe URL: ${currentSrc}</div>
-          <div>主iframe是否外部: ${isExternal}</div>
-          <div>快捷按钮显示: ${shortcutButtons.style.display}</div>
-          <div>强制显示: 5秒后检测游戏元素</div>
-        `;
-        document.body.appendChild(debugInfo);
-        
-        // 将debugInfo设为全局变量以便后续更新
-        window.debugInfo = debugInfo;
       }
     }, 3000);
     
@@ -1155,12 +1113,6 @@
               toggleShortcutButtons(isExternal);
             }
             
-            console.log('导航历史更新:', {
-              current: currentUrl,
-              history: navigationHistory,
-              index: currentHistoryIndex,
-              isExternal: isExternal
-            });
           }
         }
         isNavigatingBack = false;
@@ -1196,7 +1148,6 @@
                 if (isExternal !== lastExternalState) {
                   lastExternalState = isExternal;
                   toggleShortcutButtons(isExternal);
-                  console.log('iframe load事件检测到URL变化:', frameSrc, 'isExternal:', isExternal);
                 }
               }
               
@@ -1208,10 +1159,8 @@
                     const nestedFrame = nestedFrames[i];
                     if (nestedFrame.src && nestedFrame.src !== 'about:blank') {
                       const nestedIsExternal = isExternalGameDomain(nestedFrame.src);
-                      console.log('load事件检测到嵌套iframe:', nestedFrame.src, 'isExternal:', nestedIsExternal);
                       if (nestedIsExternal) {
                         toggleShortcutButtons(true);
-                        console.log('load事件检测到外部游戏，显示快捷按钮');
                         break;
                       }
                     }
@@ -1242,16 +1191,6 @@
         const isInternal = isK8PlayDomain || isK8PlayUrl;
         const isExternal = !isInternal;
         
-        // 调试信息
-        console.log('外部域名检测:', {
-          url: url,
-          hostname: urlObj.hostname,
-          isK8PlayDomain: isK8PlayDomain,
-          isK8PlayUrl: isK8PlayUrl,
-          isInternal: isInternal,
-          isExternal: isExternal
-        });
-        
         return isExternal;
       } catch (e) {
         console.log('URL解析失败:', url, e);
@@ -1267,10 +1206,8 @@
         lastShortcutState = show;
         if (show) {
           shortcutButtons.style.display = 'flex';
-          console.log('显示快捷按钮 - 检测到外部游戏域名');
         } else {
           shortcutButtons.style.display = 'none';
-          console.log('隐藏快捷按钮 - 返回K8Play主站');
         }
       }
     }
@@ -1282,7 +1219,6 @@
         trackEvent('shortcut_wallet_clicked');
         const walletUrl = `${baseGameUrl}?modal=wallet&tab=deposit`;
         gameFrame.src = walletUrl;
-        console.log('打开钱包充值页面:', walletUrl);
       });
       
       // 收藏按钮 - 打开收藏页面
@@ -1290,7 +1226,6 @@
         trackEvent('shortcut_favorites_clicked');
         const favoritesUrl = `${baseGameUrl}games/favorites/`;
         gameFrame.src = favoritesUrl;
-        console.log('打开收藏页面:', favoritesUrl);
       });
       
       // 首页按钮 - 返回首页（带确认）
@@ -1308,7 +1243,6 @@
           if (confirmed) {
             trackEvent('shortcut_home_confirmed');
             gameFrame.src = 'https://k8play7.com/';
-            console.log('返回首页: https://k8play7.com/');
           } else {
             trackEvent('shortcut_home_cancelled');
           }
@@ -1348,12 +1282,6 @@
               const isExternal = isExternalGameDomain(newUrl);
               toggleShortcutButtons(isExternal);
               
-              console.log('SPA导航检测:', {
-                url: newUrl,
-                history: navigationHistory,
-                index: currentHistoryIndex,
-                isExternal: isExternal
-              });
             }
           }
         }
@@ -1377,7 +1305,6 @@
           if (isExternal !== lastExternalState) {
             lastExternalState = isExternal;
             toggleShortcutButtons(isExternal);
-            console.log('定期检查检测到URL变化:', currentSrc, 'isExternal:', isExternal);
           }
         }
       }

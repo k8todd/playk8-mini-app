@@ -38,6 +38,71 @@
       height: 24px;
       fill: white;
     }
+    
+    /* 快捷按钮容器 */
+    .shortcut-buttons {
+      position: fixed;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1001;
+    }
+    
+    /* 快捷按钮样式 */
+    .shortcut-btn {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #cc004a, #ff0066);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(204, 0, 74, 0.4);
+      opacity: 0.76;
+    }
+    
+    .shortcut-btn:hover {
+      transform: scale(1.1);
+      opacity: 1;
+      box-shadow: 0 6px 20px rgba(204, 0, 74, 0.6);
+    }
+    
+    .shortcut-btn:active {
+      transform: scale(0.95);
+    }
+    
+    /* 按钮图标 */
+    .shortcut-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+    }
+    
+    /* 按钮标签 */
+    .shortcut-btn::after {
+      content: attr(data-label);
+      position: absolute;
+      right: 70px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    
+    .shortcut-btn:hover::after {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -46,6 +111,30 @@
       <svg viewBox="0 0 24 24">
         <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
       </svg>
+    </div>
+    
+    <!-- 快捷按钮容器 -->
+    <div class="shortcut-buttons" id="shortcutButtons">
+      <!-- 钱包按钮 -->
+      <div class="shortcut-btn" id="walletBtn" data-label="钱包充值">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+        </svg>
+      </div>
+      
+      <!-- 收藏按钮 -->
+      <div class="shortcut-btn" id="favoritesBtn" data-label="我的收藏">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+      </div>
+      
+      <!-- 首页按钮 -->
+      <div class="shortcut-btn" id="homeBtn" data-label="返回首页">
+        <svg viewBox="0 0 24 24">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+      </div>
     </div>
     <iframe id="gameFrame" src="about:blank" allowfullscreen allow="camera; microphone; geolocation; payment; usb; magnetometer; gyroscope; accelerometer; ambient-light-sensor; autoplay; encrypted-media; midi; sync-xhr; clipboard-read; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-top-navigation"></iframe>
   </div>
@@ -68,6 +157,10 @@
 
     const gameFrame = document.getElementById('gameFrame');
     const backButton = document.getElementById('backButton');
+    const shortcutButtons = document.getElementById('shortcutButtons');
+    const walletBtn = document.getElementById('walletBtn');
+    const favoritesBtn = document.getElementById('favoritesBtn');
+    const homeBtn = document.getElementById('homeBtn');
 
     // 构建包含用户信息的游戏URL
     const baseGameUrl = 'https://k8play7.com/';
@@ -196,6 +289,9 @@
           
           // 检查并处理自动登录
           checkAndHandleAutoLogin();
+          
+          // 初始化快捷按钮
+          initShortcutButtons();
         }, 2000);
       };
       gameFrame.onerror = () => {
@@ -317,6 +413,15 @@
                    if (this.isInTelegram()) {
                      window.parent.postMessage({
                        type: 'navigation_change',
+                       url: window.location.href
+                     }, '*');
+                     
+                     // 检查是否在外部游戏域名
+                     const isExternal = window.location.hostname !== 'k8play7.com' && 
+                                      !window.location.hostname.endsWith('.k8play7.com');
+                     window.parent.postMessage({
+                       type: 'external_domain_check',
+                       isExternal: isExternal,
                        url: window.location.href
                      }, '*');
                    }
@@ -512,6 +617,15 @@
         }
       }
       
+      // 处理外部域名检测
+      if (event.data.type === 'external_domain_check') {
+        toggleShortcutButtons(event.data.isExternal);
+        console.log('外部域名检测:', {
+          isExternal: event.data.isExternal,
+          url: event.data.url
+        });
+      }
+      
       // 处理游戏请求Telegram操作
       if (event.data.type === 'tg_action') {
         switch (event.data.action) {
@@ -684,46 +798,126 @@
             backButton.style.display = 'flex';
           }
           
+          // 检查是否在外部游戏域名，显示/隐藏快捷按钮
+          const isExternal = isExternalGameDomain(currentUrl);
+          toggleShortcutButtons(isExternal);
+          
           console.log('导航历史更新:', {
             current: currentUrl,
             history: navigationHistory,
-            index: currentHistoryIndex
+            index: currentHistoryIndex,
+            isExternal: isExternal
           });
         }
         isNavigatingBack = false;
       } catch (e) {
         // 跨域时无法访问contentWindow.location
         console.log('无法访问iframe location（跨域限制）');
+        
+        // 尝试通过src检测外部域名
+        const currentSrc = gameFrame.src;
+        if (currentSrc !== 'about:blank') {
+          const isExternal = isExternalGameDomain(currentSrc);
+          toggleShortcutButtons(isExternal);
+        }
       }
     }
     
+    // 检查是否在外部游戏域名
+    function isExternalGameDomain(url) {
+      try {
+        const urlObj = new URL(url);
+        return urlObj.hostname !== 'k8play7.com' && 
+               !urlObj.hostname.endsWith('.k8play7.com');
+      } catch (e) {
+        return false;
+      }
+    }
+    
+    // 显示/隐藏快捷按钮
+    function toggleShortcutButtons(show) {
+      if (show) {
+        shortcutButtons.style.display = 'flex';
+        console.log('显示快捷按钮 - 检测到外部游戏域名');
+      } else {
+        shortcutButtons.style.display = 'none';
+        console.log('隐藏快捷按钮 - 返回K8Play主站');
+      }
+    }
+    
+    // 快捷按钮功能
+    function initShortcutButtons() {
+      // 钱包按钮 - 打开充值弹窗
+      walletBtn.addEventListener('click', () => {
+        trackEvent('shortcut_wallet_clicked');
+        const walletUrl = `${baseGameUrl}?modal=wallet&tab=deposit`;
+        gameFrame.src = walletUrl;
+        console.log('打开钱包充值页面:', walletUrl);
+      });
+      
+      // 收藏按钮 - 打开收藏页面
+      favoritesBtn.addEventListener('click', () => {
+        trackEvent('shortcut_favorites_clicked');
+        const favoritesUrl = `${baseGameUrl}/games/favorites/`;
+        gameFrame.src = favoritesUrl;
+        console.log('打开收藏页面:', favoritesUrl);
+      });
+      
+      // 首页按钮 - 返回首页（带确认）
+      homeBtn.addEventListener('click', () => {
+        trackEvent('shortcut_home_clicked');
+        
+        // 显示确认弹窗
+        const confirmMessage = {
+          en: 'Are you sure you want to return to the homepage? Current game progress will be lost.',
+          ja: 'ホームページに戻りますか？現在のゲームの進行状況は失われます。',
+          zh: '确定要返回首页吗？当前游戏进度将会丢失。'
+        };
+        
+        tg.showConfirm(confirmMessage[userLang] || confirmMessage.en, (confirmed) => {
+          if (confirmed) {
+            trackEvent('shortcut_home_confirmed');
+            gameFrame.src = baseGameUrl;
+            console.log('返回首页:', baseGameUrl);
+          } else {
+            trackEvent('shortcut_home_cancelled');
+          }
+        });
+      });
+    }
+
     // 增强的导航跟踪（处理SPA应用）
     function enhancedNavigationTracking() {
       // 监听来自K8Play的导航事件
       window.addEventListener('message', (event) => {
         if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
         
-        if (event.data.type === 'navigation_change') {
-          const newUrl = event.data.url;
-          if (newUrl && !isNavigatingBack && newUrl !== navigationHistory[currentHistoryIndex]) {
-            // 新导航，添加到历史记录
-            navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
-            navigationHistory.push(newUrl);
-            currentHistoryIndex = navigationHistory.length - 1;
-            
-            // 显示返回按钮
-            if (navigationHistory.length > 1) {
-              tg.BackButton.show();
-              backButton.style.display = 'flex';
-            }
-            
-            console.log('SPA导航检测:', {
-              url: newUrl,
-              history: navigationHistory,
-              index: currentHistoryIndex
-            });
-          }
-        }
+                 if (event.data.type === 'navigation_change') {
+           const newUrl = event.data.url;
+           if (newUrl && !isNavigatingBack && newUrl !== navigationHistory[currentHistoryIndex]) {
+             // 新导航，添加到历史记录
+             navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
+             navigationHistory.push(newUrl);
+             currentHistoryIndex = navigationHistory.length - 1;
+             
+             // 显示返回按钮
+             if (navigationHistory.length > 1) {
+               tg.BackButton.show();
+               backButton.style.display = 'flex';
+             }
+             
+             // 检查是否在外部游戏域名，显示/隐藏快捷按钮
+             const isExternal = isExternalGameDomain(newUrl);
+             toggleShortcutButtons(isExternal);
+             
+             console.log('SPA导航检测:', {
+               url: newUrl,
+               history: navigationHistory,
+               index: currentHistoryIndex,
+               isExternal: isExternal
+             });
+           }
+         }
       });
       
       // 定期检查URL变化（备用方案）

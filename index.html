@@ -47,7 +47,7 @@
         <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
       </svg>
     </div>
-    <iframe id="gameFrame" src="about:blank" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+    <iframe id="gameFrame" src="about:blank" allowfullscreen allow="camera; microphone; geolocation; payment; usb; magnetometer; gyroscope; accelerometer; ambient-light-sensor; autoplay; encrypted-media; midi; sync-xhr; clipboard-read; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-top-navigation"></iframe>
   </div>
 
   <script>
@@ -81,6 +81,10 @@
     urlParams.append('tg_version', tg.version);
     urlParams.append('tg_theme', tg.colorScheme || 'light');
     urlParams.append('tg_init_data', tg.initData || '');
+    
+    // 添加登录状态标识
+    urlParams.append('tg_source', 'telegram_mini_app');
+    urlParams.append('tg_auto_login', 'true');
     
     const gameUrl = urlParams.toString() ? `${baseGameUrl}?${urlParams.toString()}` : baseGameUrl;
 
@@ -143,13 +147,31 @@
 
     function loadGame() {
       trackEvent('app_start', { invite_code: param });
-      gameFrame.src = gameUrl;
+      
+      // 尝试恢复登录状态
+      const savedLoginState = localStorage.getItem('k8play_login_state');
+      let finalGameUrl = gameUrl;
+      
+      if (savedLoginState) {
+        try {
+          const loginData = JSON.parse(savedLoginState);
+          // 如果登录状态未过期，使用保存的URL
+          if (loginData.expiresAt && new Date() < new Date(loginData.expiresAt)) {
+            finalGameUrl = loginData.url;
+            console.log('恢复登录状态:', loginData);
+          }
+        } catch (e) {
+          console.log('登录状态恢复失败:', e);
+        }
+      }
+      
+      gameFrame.src = finalGameUrl;
       gameFrame.onload = () => {
         tg.ready();
         trackEvent('game_loaded');
         
         // 初始化导航历史
-        navigationHistory = [gameUrl];
+        navigationHistory = [finalGameUrl];
         currentHistoryIndex = 0;
         
         // 开始跟踪导航
@@ -157,6 +179,21 @@
         
         // 设置定时器监听URL变化（对于单页应用）
         setInterval(trackNavigation, 500);
+        
+        // 监听登录状态变化
+        setTimeout(() => {
+          gameFrame.contentWindow.postMessage({
+            type: 'request_login_state',
+            user_id: userId,
+            username: username
+          }, baseGameUrl);
+          
+          // 注入登录状态管理脚本到游戏页面
+          injectLoginStateScript();
+          
+          // 检查并处理自动登录
+          checkAndHandleAutoLogin();
+        }, 2000);
       };
       gameFrame.onerror = () => {
         console.error('Failed to load game');
@@ -176,6 +213,201 @@
     resizeIframe();
     window.addEventListener('resize', resizeIframe);
 
+    // 自动登录检测和处理
+    function checkAndHandleAutoLogin() {
+      // 检查是否有保存的登录状态
+      const savedLoginState = localStorage.getItem('k8play_login_state');
+      if (savedLoginState) {
+        try {
+          const loginData = JSON.parse(savedLoginState);
+          if (loginData.expiresAt && new Date() < new Date(loginData.expiresAt)) {
+            // 登录状态有效，尝试自动登录
+            console.log('检测到有效登录状态，尝试自动登录');
+            
+            // 向游戏发送自动登录请求
+            setTimeout(() => {
+              gameFrame.contentWindow.postMessage({
+                type: 'auto_login_request',
+                user_id: loginData.user_id,
+                username: loginData.username,
+                saved_url: loginData.url
+              }, baseGameUrl);
+            }, 1000);
+          }
+        } catch (e) {
+          console.log('登录状态解析失败:', e);
+        }
+      }
+    }
+
+    // 注入登录状态管理脚本到游戏页面
+    function injectLoginStateScript() {
+      try {
+        const script = `
+          (function() {
+            // 登录状态管理
+            window.k8playLoginManager = {
+              // 检查是否在Telegram环境中
+              isInTelegram: function() {
+                return window.parent && window.parent !== window && 
+                       window.parent.location.href.includes('telegram');
+              },
+              
+              // 检查用户是否已登录
+              isUserLoggedIn: function() {
+                // 检查常见的登录标识
+                return !!(
+                  document.cookie.includes('session') ||
+                  document.cookie.includes('token') ||
+                  document.cookie.includes('auth') ||
+                  localStorage.getItem('user') ||
+                  localStorage.getItem('token') ||
+                  localStorage.getItem('session') ||
+                  document.querySelector('[data-user]') ||
+                  document.querySelector('.user-info') ||
+                  document.querySelector('.logged-in')
+                );
+              },
+              
+              // 保存登录状态
+              saveLoginState: function() {
+                if (this.isInTelegram()) {
+                  window.parent.postMessage({
+                    type: 'save_login_state',
+                    url: window.location.href
+                  }, '*');
+                  console.log('登录状态已保存到Telegram应用');
+                }
+              },
+              
+              // 清除登录状态
+              clearLoginState: function() {
+                if (this.isInTelegram()) {
+                  window.parent.postMessage({
+                    type: 'clear_login_state'
+                  }, '*');
+                  console.log('登录状态已从Telegram应用清除');
+                }
+              },
+              
+              // 监听登录状态请求
+              init: function() {
+                // 监听来自Telegram的消息
+                window.addEventListener('message', (event) => {
+                  if (event.data.type === 'request_login_state') {
+                    if (this.isUserLoggedIn()) {
+                      this.saveLoginState();
+                    }
+                  }
+                });
+                
+                // 监听页面变化（用于单页应用）
+                let currentUrl = window.location.href;
+                const observer = new MutationObserver(() => {
+                  if (window.location.href !== currentUrl) {
+                    currentUrl = window.location.href;
+                    if (this.isUserLoggedIn()) {
+                      this.saveLoginState();
+                    }
+                  }
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+                
+                // 监听表单提交（登录表单）
+                document.addEventListener('submit', (event) => {
+                  const form = event.target;
+                  if (form.action && form.action.includes('login')) {
+                    // 延迟检查登录状态
+                    setTimeout(() => {
+                      if (this.isUserLoggedIn()) {
+                        this.saveLoginState();
+                      }
+                    }, 1000);
+                  }
+                });
+                
+                // 监听AJAX请求完成
+                const originalXHROpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function() {
+                  this.addEventListener('load', function() {
+                    if (this.responseURL && this.responseURL.includes('login')) {
+                      setTimeout(() => {
+                        if (window.k8playLoginManager.isUserLoggedIn()) {
+                          window.k8playLoginManager.saveLoginState();
+                        }
+                      }, 500);
+                    }
+                  });
+                  originalXHROpen.apply(this, arguments);
+                };
+                
+                // 监听fetch请求
+                const originalFetch = window.fetch;
+                window.fetch = function() {
+                  return originalFetch.apply(this, arguments).then(response => {
+                    if (response.url && response.url.includes('login')) {
+                      setTimeout(() => {
+                        if (window.k8playLoginManager.isUserLoggedIn()) {
+                          window.k8playLoginManager.saveLoginState();
+                        }
+                      }, 500);
+                    }
+                    return response;
+                  });
+                };
+                
+                // 定期检查登录状态
+                setInterval(() => {
+                  if (this.isUserLoggedIn()) {
+                    this.saveLoginState();
+                  }
+                }, 30000); // 每30秒检查一次
+                
+                console.log('K8Play登录状态管理器已初始化');
+              }
+            };
+            
+            // 初始化登录状态管理器
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', () => {
+                window.k8playLoginManager.init();
+              });
+            } else {
+              window.k8playLoginManager.init();
+            }
+            
+            // 添加退出登录监听
+            document.addEventListener('click', (event) => {
+              const target = event.target;
+              if (target.textContent.toLowerCase().includes('logout') ||
+                  target.textContent.toLowerCase().includes('退出') ||
+                  target.textContent.toLowerCase().includes('登出') ||
+                  target.href && target.href.includes('logout')) {
+                setTimeout(() => {
+                  window.k8playLoginManager.clearLoginState();
+                }, 500);
+              }
+            });
+          })();
+        `;
+        
+        // 尝试注入脚本到游戏页面
+        if (gameFrame.contentWindow) {
+          const scriptElement = gameFrame.contentWindow.document.createElement('script');
+          scriptElement.textContent = script;
+          gameFrame.contentWindow.document.head.appendChild(scriptElement);
+          console.log('登录状态管理脚本已注入到游戏页面');
+        }
+      } catch (e) {
+        console.log('注入脚本失败（跨域限制）:', e.message);
+        // 如果无法直接注入，通过postMessage发送脚本
+        gameFrame.contentWindow.postMessage({
+          type: 'inject_login_script',
+          script: script
+        }, baseGameUrl);
+      }
+    }
+
     // 监听来自游戏的消息
     window.addEventListener('message', (event) => {
       if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
@@ -183,6 +415,56 @@
       // 处理游戏发来的消息
       if (event.data.type === 'game_event') {
         trackEvent(event.data.eventName, event.data.data);
+      }
+      
+      // 处理登录状态保存
+      if (event.data.type === 'save_login_state') {
+        try {
+          const loginState = {
+            url: event.data.url || gameFrame.src,
+            user_id: userId,
+            username: username,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7天过期
+            savedAt: new Date().toISOString()
+          };
+          localStorage.setItem('k8play_login_state', JSON.stringify(loginState));
+          console.log('登录状态已保存:', loginState);
+        } catch (e) {
+          console.error('保存登录状态失败:', e);
+        }
+      }
+      
+      // 处理登录状态清除
+      if (event.data.type === 'clear_login_state') {
+        try {
+          localStorage.removeItem('k8play_login_state');
+          console.log('登录状态已清除');
+        } catch (e) {
+          console.error('清除登录状态失败:', e);
+        }
+      }
+      
+      // 处理脚本注入请求
+      if (event.data.type === 'inject_login_script') {
+        try {
+          const scriptElement = document.createElement('script');
+          scriptElement.textContent = event.data.script;
+          document.head.appendChild(scriptElement);
+          console.log('登录状态管理脚本已通过postMessage注入');
+        } catch (e) {
+          console.error('脚本注入失败:', e);
+        }
+      }
+      
+      // 处理自动登录响应
+      if (event.data.type === 'auto_login_response') {
+        if (event.data.success) {
+          console.log('自动登录成功');
+          trackEvent('auto_login_success');
+        } else {
+          console.log('自动登录失败:', event.data.reason);
+          trackEvent('auto_login_failed', { reason: event.data.reason });
+        }
       }
       
       // 处理游戏请求Telegram操作

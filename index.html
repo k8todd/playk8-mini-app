@@ -49,63 +49,132 @@
       flex-direction: column;
       gap: 10px;
       z-index: 1001;
-      transition: all 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     
-    /* 收起状态 */
+    /* 收起状态 - 所有按钮隐藏 */
     .shortcut-buttons.collapsed {
-      gap: 5px;
+      gap: 0;
     }
     
     .shortcut-buttons.collapsed .shortcut-btn {
-      width: 32px;
-      height: 32px;
-      opacity: 0.7;
+      width: 0;
+      height: 0;
+      opacity: 0;
+      transform: scale(0);
+      margin: 0;
+      padding: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
     
-    .shortcut-buttons.collapsed .shortcut-btn svg {
-      width: 16px;
-      height: 16px;
+    /* 展开状态动画 */
+    .shortcut-buttons:not(.collapsed) .shortcut-btn {
+      animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }
     
-    .shortcut-buttons.collapsed .shortcut-btn:hover {
-      opacity: 1;
+    .shortcut-buttons:not(.collapsed) .shortcut-btn:nth-child(1) {
+      animation-delay: 0.1s;
+    }
+    
+    .shortcut-buttons:not(.collapsed) .shortcut-btn:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    
+    .shortcut-buttons:not(.collapsed) .shortcut-btn:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+    
+    @keyframes bounceIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.3) translateX(50px);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.05) translateX(-5px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateX(0);
+      }
     }
     
     /* 收起/展开切换按钮 */
     .shortcut-toggle {
       position: fixed;
       top: 50%;
-      right: 10px;
+      right: -5px;
       transform: translateY(-50%);
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #2996E4, #2996E4);
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      width: 32px;
+      height: 32px;
+      border-radius: 50% 0 0 50%;
+      background: linear-gradient(135deg, #2996E4, #1976D2);
+      border: none;
       display: none;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(41, 150, 228, 0.4);
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: -2px 4px 12px rgba(41, 150, 228, 0.4);
       z-index: 1002;
+      padding-left: 8px;
     }
     
     .shortcut-toggle:hover {
-      transform: translateY(-50%) scale(1.1);
-      box-shadow: 0 6px 20px rgba(41, 150, 228, 0.6);
+      right: 0px;
+      box-shadow: -4px 6px 20px rgba(41, 150, 228, 0.6);
+      background: linear-gradient(135deg, #1976D2, #0D47A1);
+    }
+    
+    .shortcut-toggle:active {
+      transform: translateY(-50%) scale(0.95);
     }
     
     .shortcut-toggle svg {
-      width: 20px;
-      height: 20px;
+      width: 16px;
+      height: 16px;
       fill: white;
-      transition: transform 0.3s ease;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     
     .shortcut-toggle.expanded svg {
       transform: rotate(180deg);
+    }
+    
+    /* 脉搏动画提示用户点击 */
+    .shortcut-toggle::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100%;
+      height: 100%;
+      border-radius: 50% 0 0 50%;
+      background: rgba(41, 150, 228, 0.3);
+      transform: translate(-50%, -50%);
+      animation: pulse 2s infinite;
+      z-index: -1;
+    }
+    
+    @keyframes pulse {
+      0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+      }
+      70% {
+        transform: translate(-50%, -50%) scale(1.4);
+        opacity: 0;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1.4);
+        opacity: 0;
+      }
+    }
+    
+    /* 收起状态时停止脉搏动画 */
+    .shortcut-toggle.expanded::before {
+      animation: none;
     }
     
 
@@ -199,7 +268,7 @@
     <!-- 快捷按钮切换按钮 -->
     <div class="shortcut-toggle" id="shortcutToggle">
       <svg viewBox="0 0 24 24">
-        <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
       </svg>
     </div>
     <iframe id="gameFrame" src="about:blank" allowfullscreen allow="camera; microphone; geolocation; payment; usb; magnetometer; gyroscope; accelerometer; ambient-light-sensor; autoplay; encrypted-media; midi; sync-xhr; clipboard-read; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-top-navigation"></iframe>
@@ -229,8 +298,8 @@
     const favoritesBtn = document.getElementById('favoritesBtn');
     const homeBtn = document.getElementById('homeBtn');
     
-    // 快捷按钮状态
-    let isShortcutCollapsed = false;
+    // 快捷按钮状态 - 默认收起
+    let isShortcutCollapsed = true;
 
     // 构建包含用户信息的游戏URL
     const baseGameUrl = 'https://k8play7.com/';
@@ -1276,9 +1345,17 @@
       if (show !== lastShortcutState) {
         lastShortcutState = show;
         if (show) {
-          shortcutButtons.style.display = 'flex';
+          // 显示切换按钮，快捷按钮默认收起
           shortcutToggle.style.display = 'flex';
+          shortcutButtons.style.display = 'flex';
+          
+          // 设置默认收起状态
+          if (isShortcutCollapsed) {
+            shortcutButtons.classList.add('collapsed');
+            shortcutToggle.classList.add('expanded');
+          }
         } else {
+          // 隐藏所有快捷按钮
           shortcutButtons.style.display = 'none';
           shortcutToggle.style.display = 'none';
         }
@@ -1290,16 +1367,37 @@
       shortcutToggle.addEventListener('click', () => {
         isShortcutCollapsed = !isShortcutCollapsed;
         
+        // 添加点击反馈
+        shortcutToggle.style.transform = 'translateY(-50%) scale(0.9)';
+        setTimeout(() => {
+          shortcutToggle.style.transform = 'translateY(-50%)';
+        }, 150);
+        
         if (isShortcutCollapsed) {
+          // 收起：隐藏快捷按钮，只显示切换按钮
           shortcutButtons.classList.add('collapsed');
           shortcutToggle.classList.add('expanded');
+          
+          console.log('快捷按钮已收起');
         } else {
+          // 展开：显示所有快捷按钮
           shortcutButtons.classList.remove('collapsed');
           shortcutToggle.classList.remove('expanded');
+          
+          console.log('快捷按钮已展开');
         }
         
-        trackEvent('shortcut_toggle', { collapsed: isShortcutCollapsed });
+        trackEvent('shortcut_toggle', { 
+          collapsed: isShortcutCollapsed,
+          action: isShortcutCollapsed ? 'collapse' : 'expand'
+        });
       });
+      
+      // 设置初始状态
+      if (isShortcutCollapsed) {
+        shortcutButtons.classList.add('collapsed');
+        shortcutToggle.classList.add('expanded');
+      }
     }
     
     // 快捷按钮功能

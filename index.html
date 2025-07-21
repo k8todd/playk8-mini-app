@@ -51,10 +51,7 @@
       z-index: 1001;
     }
     
-    /* 调试模式 - 临时显示快捷按钮 */
-    .shortcut-buttons.debug {
-      display: flex !important;
-    }
+
     
     /* 快捷按钮样式 */
     .shortcut-btn {
@@ -314,18 +311,7 @@
               // 初始化快捷按钮
     initShortcutButtons();
     
-    // 调试：强制显示快捷按钮（临时）
-    console.log('调试：强制显示快捷按钮');
-    shortcutButtons.classList.add('debug');
-    shortcutButtons.style.display = 'flex';
-    
-    // 检查当前URL状态
-    console.log('当前iframe src:', gameFrame.src);
-    console.log('快捷按钮状态:', {
-      display: shortcutButtons.style.display,
-      className: shortcutButtons.className,
-      isVisible: shortcutButtons.offsetParent !== null
-    });
+
         }, 2000);
       };
       gameFrame.onerror = () => {
@@ -925,13 +911,25 @@
     function isExternalGameDomain(url) {
       try {
         const urlObj = new URL(url);
-        const isExternal = urlObj.hostname !== 'k8play7.com' && 
-                          !urlObj.hostname.endsWith('.k8play7.com');
+        
+        // 检查是否是k8play7.com或其子域名
+        const isK8PlayDomain = urlObj.hostname === 'k8play7.com' || 
+                              urlObj.hostname.endsWith('.k8play7.com');
+        
+        // 检查URL是否以https://k8play7.com/开头
+        const isK8PlayUrl = url.startsWith('https://k8play7.com/');
+        
+        // 如果是k8play7.com域名或以k8play7.com开头的URL，则认为是内部链接
+        const isInternal = isK8PlayDomain || isK8PlayUrl;
+        const isExternal = !isInternal;
         
         // 调试信息
         console.log('外部域名检测:', {
           url: url,
           hostname: urlObj.hostname,
+          isK8PlayDomain: isK8PlayDomain,
+          isK8PlayUrl: isK8PlayUrl,
+          isInternal: isInternal,
           isExternal: isExternal
         });
         
@@ -971,7 +969,7 @@
       // 收藏按钮 - 打开收藏页面
       favoritesBtn.addEventListener('click', () => {
         trackEvent('shortcut_favorites_clicked');
-        const favoritesUrl = `${baseGameUrl}/games/favorites/`;
+        const favoritesUrl = `${baseGameUrl}games/favorites/`;
         gameFrame.src = favoritesUrl;
         console.log('打开收藏页面:', favoritesUrl);
       });
@@ -990,8 +988,8 @@
         tg.showConfirm(confirmMessage[userLang] || confirmMessage.en, (confirmed) => {
           if (confirmed) {
             trackEvent('shortcut_home_confirmed');
-            gameFrame.src = baseGameUrl;
-            console.log('返回首页:', baseGameUrl);
+            gameFrame.src = 'https://k8play7.com/';
+            console.log('返回首页: https://k8play7.com/');
           } else {
             trackEvent('shortcut_home_cancelled');
           }
@@ -1135,46 +1133,7 @@
       }
     };
     
-    // 添加手动测试按钮（临时调试用）
-    const testButton = document.createElement('button');
-    testButton.textContent = '测试快捷按钮';
-    testButton.style.cssText = `
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 10000;
-      background: red;
-      color: white;
-      border: none;
-      padding: 10px;
-      border-radius: 5px;
-      cursor: pointer;
-    `;
-    testButton.onclick = () => {
-      console.log('手动测试快捷按钮');
-      shortcutButtons.style.display = 'flex';
-      console.log('快捷按钮已强制显示');
-      
-      // 检查当前状态
-      console.log('当前状态检查:');
-      console.log('- iframe src:', gameFrame.src);
-      console.log('- 快捷按钮显示状态:', shortcutButtons.style.display);
-      console.log('- 是否外部域名:', isExternalGameDomain(gameFrame.src));
-    };
-    document.body.appendChild(testButton);
-    
-    // 立即检查当前状态
-    setTimeout(() => {
-      console.log('=== 初始状态检查 ===');
-      console.log('iframe src:', gameFrame.src);
-      console.log('快捷按钮元素:', shortcutButtons);
-      console.log('快捷按钮显示状态:', shortcutButtons.style.display);
-      console.log('是否外部域名:', isExternalGameDomain(gameFrame.src));
-      
-      // 强制显示快捷按钮进行测试
-      shortcutButtons.style.display = 'flex';
-      console.log('快捷按钮已强制显示用于测试');
-    }, 1000);
+
   </script>
 </body>
 </html>

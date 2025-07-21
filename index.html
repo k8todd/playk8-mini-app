@@ -224,9 +224,13 @@
     const gameFrame = document.getElementById('gameFrame');
     const backButton = document.getElementById('backButton');
     const shortcutButtons = document.getElementById('shortcutButtons');
+    const shortcutToggle = document.getElementById('shortcutToggle');
     const walletBtn = document.getElementById('walletBtn');
     const favoritesBtn = document.getElementById('favoritesBtn');
     const homeBtn = document.getElementById('homeBtn');
+    
+    // 快捷按钮状态
+    let isShortcutCollapsed = false;
 
     // 构建包含用户信息的游戏URL
     const baseGameUrl = 'https://k8play7.com/';
@@ -374,6 +378,9 @@
           
               // 初始化快捷按钮
     initShortcutButtons();
+    
+    // 初始化快捷按钮切换功能
+    initShortcutToggle();
     
     // 主动检测当前URL状态
     setTimeout(() => {
@@ -1270,10 +1277,29 @@
         lastShortcutState = show;
         if (show) {
           shortcutButtons.style.display = 'flex';
+          shortcutToggle.style.display = 'flex';
         } else {
           shortcutButtons.style.display = 'none';
+          shortcutToggle.style.display = 'none';
         }
       }
+    }
+    
+    // 快捷按钮收起/展开功能
+    function initShortcutToggle() {
+      shortcutToggle.addEventListener('click', () => {
+        isShortcutCollapsed = !isShortcutCollapsed;
+        
+        if (isShortcutCollapsed) {
+          shortcutButtons.classList.add('collapsed');
+          shortcutToggle.classList.add('expanded');
+        } else {
+          shortcutButtons.classList.remove('collapsed');
+          shortcutToggle.classList.remove('expanded');
+        }
+        
+        trackEvent('shortcut_toggle', { collapsed: isShortcutCollapsed });
+      });
     }
     
     // 快捷按钮功能

@@ -177,6 +177,9 @@
         // 开始跟踪导航
         trackNavigation();
         
+        // 启用增强的导航跟踪
+        enhancedNavigationTracking();
+        
         // 设置定时器监听URL变化（对于单页应用）
         setInterval(trackNavigation, 500);
         
@@ -301,17 +304,59 @@
                   }
                 });
                 
-                // 监听页面变化（用于单页应用）
-                let currentUrl = window.location.href;
-                const observer = new MutationObserver(() => {
-                  if (window.location.href !== currentUrl) {
-                    currentUrl = window.location.href;
-                    if (this.isUserLoggedIn()) {
-                      this.saveLoginState();
-                    }
-                  }
-                });
-                observer.observe(document.body, { childList: true, subtree: true });
+                               // 监听页面变化（用于单页应用）
+               let currentUrl = window.location.href;
+               const observer = new MutationObserver(() => {
+                 if (window.location.href !== currentUrl) {
+                   currentUrl = window.location.href;
+                   if (this.isUserLoggedIn()) {
+                     this.saveLoginState();
+                   }
+                   
+                   // 发送导航变化事件到Telegram应用
+                   if (this.isInTelegram()) {
+                     window.parent.postMessage({
+                       type: 'navigation_change',
+                       url: window.location.href
+                     }, '*');
+                   }
+                 }
+               });
+               observer.observe(document.body, { childList: true, subtree: true });
+               
+               // 监听pushState和replaceState（SPA路由变化）
+               const originalPushState = history.pushState;
+               const originalReplaceState = history.replaceState;
+               
+               history.pushState = function() {
+                 originalPushState.apply(this, arguments);
+                 if (window.k8playLoginManager.isInTelegram()) {
+                   window.parent.postMessage({
+                     type: 'navigation_change',
+                     url: window.location.href
+                   }, '*');
+                 }
+               };
+               
+               history.replaceState = function() {
+                 originalReplaceState.apply(this, arguments);
+                 if (window.k8playLoginManager.isInTelegram()) {
+                   window.parent.postMessage({
+                     type: 'navigation_change',
+                     url: window.location.href
+                   }, '*');
+                 }
+               };
+               
+               // 监听popstate事件（浏览器前进后退）
+               window.addEventListener('popstate', () => {
+                 if (window.k8playLoginManager.isInTelegram()) {
+                   window.parent.postMessage({
+                     type: 'navigation_change',
+                     url: window.location.href
+                   }, '*');
+                 }
+               });
                 
                 // 监听表单提交（登录表单）
                 document.addEventListener('submit', (event) => {
@@ -638,11 +683,62 @@
             tg.BackButton.show();
             backButton.style.display = 'flex';
           }
+          
+          console.log('导航历史更新:', {
+            current: currentUrl,
+            history: navigationHistory,
+            index: currentHistoryIndex
+          });
         }
         isNavigatingBack = false;
       } catch (e) {
         // 跨域时无法访问contentWindow.location
+        console.log('无法访问iframe location（跨域限制）');
       }
+    }
+    
+    // 增强的导航跟踪（处理SPA应用）
+    function enhancedNavigationTracking() {
+      // 监听来自K8Play的导航事件
+      window.addEventListener('message', (event) => {
+        if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
+        
+        if (event.data.type === 'navigation_change') {
+          const newUrl = event.data.url;
+          if (newUrl && !isNavigatingBack && newUrl !== navigationHistory[currentHistoryIndex]) {
+            // 新导航，添加到历史记录
+            navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
+            navigationHistory.push(newUrl);
+            currentHistoryIndex = navigationHistory.length - 1;
+            
+            // 显示返回按钮
+            if (navigationHistory.length > 1) {
+              tg.BackButton.show();
+              backButton.style.display = 'flex';
+            }
+            
+            console.log('SPA导航检测:', {
+              url: newUrl,
+              history: navigationHistory,
+              index: currentHistoryIndex
+            });
+          }
+        }
+      });
+      
+      // 定期检查URL变化（备用方案）
+      let lastKnownUrl = gameFrame.src;
+      setInterval(() => {
+        try {
+          const currentUrl = gameFrame.contentWindow.location.href;
+          if (currentUrl !== lastKnownUrl && currentUrl !== 'about:blank') {
+            lastKnownUrl = currentUrl;
+            trackNavigation();
+          }
+        } catch (e) {
+          // 跨域限制，忽略
+        }
+      }, 1000);
     }
 
     // 处理返回逻辑

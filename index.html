@@ -319,6 +319,27 @@
         toggleShortcutButtons(isExternal);
         console.log('游戏加载完成后的主动检测:', currentSrc, 'isExternal:', isExternal);
         
+        // 尝试检测嵌套iframe中的实际游戏URL
+        try {
+          const nestedFrames = gameFrame.contentDocument.querySelectorAll('iframe');
+          if (nestedFrames.length > 0) {
+            for (let i = 0; i < nestedFrames.length; i++) {
+              const nestedFrame = nestedFrames[i];
+              if (nestedFrame.src && nestedFrame.src !== 'about:blank') {
+                const nestedIsExternal = isExternalGameDomain(nestedFrame.src);
+                console.log('检测到嵌套iframe:', nestedFrame.src, 'isExternal:', nestedIsExternal);
+                if (nestedIsExternal) {
+                  toggleShortcutButtons(true);
+                  console.log('嵌套iframe检测到外部游戏，显示快捷按钮');
+                  break;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.log('无法访问嵌套iframe（跨域限制）');
+        }
+        
         // 添加调试信息到页面
         const debugInfo = document.createElement('div');
         debugInfo.style.cssText = `
@@ -335,8 +356,8 @@
           word-break: break-all;
         `;
         debugInfo.innerHTML = `
-          <div>当前URL: ${currentSrc}</div>
-          <div>是否外部: ${isExternal}</div>
+          <div>主iframe URL: ${currentSrc}</div>
+          <div>主iframe是否外部: ${isExternal}</div>
           <div>快捷按钮显示: ${shortcutButtons.style.display}</div>
         `;
         document.body.appendChild(debugInfo);
@@ -500,6 +521,18 @@
                     type: 'navigation_change',
                     url: window.location.href
                   }, '*');
+                  
+                  // 检查是否进入外部游戏
+                  const isExternal = window.location.hostname !== 'k8play7.com' && 
+                                   !window.location.hostname.endsWith('.k8play7.com');
+                  if (isExternal) {
+                    window.parent.postMessage({
+                      type: 'game_state_change',
+                      isExternal: true,
+                      gameType: 'external_game',
+                      url: window.location.href
+                    }, '*');
+                  }
                 }
               };
               
@@ -510,6 +543,18 @@
                     type: 'navigation_change',
                     url: window.location.href
                   }, '*');
+                  
+                  // 检查是否进入外部游戏
+                  const isExternal = window.location.hostname !== 'k8play7.com' && 
+                                   !window.location.hostname.endsWith('.k8play7.com');
+                  if (isExternal) {
+                    window.parent.postMessage({
+                      type: 'game_state_change',
+                      isExternal: true,
+                      gameType: 'external_game',
+                      url: window.location.href
+                    }, '*');
+                  }
                 }
               };
               
@@ -597,6 +642,103 @@
                 window.k8playLoginManager.clearLoginState();
               }, 500);
             }
+          });
+          
+          // 检查URL参数来识别外部游戏
+          const urlParams = new URLSearchParams(window.location.search);
+          const hasGameParams = urlParams.has('game') || 
+                              urlParams.has('gname') || 
+                              urlParams.has('symbol') ||
+                              urlParams.has('extGame');
+          
+          if (hasGameParams && window.k8playLoginManager.isInTelegram()) {
+            // 如果有游戏参数，可能是外部游戏
+            setTimeout(() => {
+              window.parent.postMessage({
+                type: 'game_state_change',
+                isExternal: true,
+                gameType: 'external_game',
+                url: window.location.href,
+                hostname: window.location.hostname
+              }, '*');
+            }, 1000);
+          }
+          
+          // 监听页面标题变化来检测游戏状态
+          const titleObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'childList' && mutation.target.tagName === 'TITLE') {
+                const title = document.title.toLowerCase();
+                const isGameTitle = title.includes('game') || 
+                                  title.includes('slot') || 
+                                  title.includes('casino') ||
+                                  title.includes('play') ||
+                                  title.includes('bow of artemis') ||
+                                  title.includes('artemis');
+                
+                if (isGameTitle && window.k8playLoginManager.isInTelegram()) {
+                  setTimeout(() => {
+                    window.parent.postMessage({
+                      type: 'game_state_change',
+                      isExternal: true,
+                      gameType: 'external_game',
+                      url: window.location.href,
+                      hostname: window.location.hostname,
+                      title: document.title
+                    }, '*');
+                  }, 500);
+                }
+              }
+            });
+          });
+          
+          if (document.title) {
+            titleObserver.observe(document.querySelector('title') || document.head, { 
+              childList: true, 
+              subtree: true 
+            });
+          }
+          
+          // 监听游戏相关元素出现
+          const gameElementObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach((node) => {
+                  if (node.nodeType === 1) {
+                    // 检查是否包含游戏相关元素
+                    const hasCanvas = node.querySelector && node.querySelector('canvas');
+                    const hasGameClass = node.className && (
+                      node.className.includes('game') ||
+                      node.className.includes('slot') ||
+                      node.className.includes('casino')
+                    );
+                    const hasGameId = node.id && (
+                      node.id.includes('game') ||
+                      node.id.includes('slot') ||
+                      node.id.includes('casino')
+                    );
+                    
+                    if ((hasCanvas || hasGameClass || hasGameId) && window.k8playLoginManager.isInTelegram()) {
+                      setTimeout(() => {
+                        window.parent.postMessage({
+                          type: 'game_state_change',
+                          isExternal: true,
+                          gameType: 'external_game',
+                          url: window.location.href,
+                          hostname: window.location.hostname,
+                          element: node.tagName + (node.className ? '.' + node.className : '') + (node.id ? '#' + node.id : '')
+                        }, '*');
+                      }, 500);
+                    }
+                  }
+                });
+              }
+            });
+          });
+          
+          gameElementObserver.observe(document.body, { 
+            childList: true, 
+            subtree: true 
           });
         })();
       `;
@@ -691,6 +833,17 @@
           isExternal: isExternal,
           url: event.data.url,
           hostname: event.data.hostname,
+          action: isExternal ? '显示快捷按钮' : '隐藏快捷按钮'
+        });
+      }
+      
+      // 处理游戏状态变化
+      if (event.data.type === 'game_state_change') {
+        const isExternal = event.data.isExternal || false;
+        toggleShortcutButtons(isExternal);
+        console.log('游戏状态变化:', {
+          isExternal: isExternal,
+          gameType: event.data.gameType,
           action: isExternal ? '显示快捷按钮' : '隐藏快捷按钮'
         });
       }
@@ -958,6 +1111,27 @@
                   toggleShortcutButtons(isExternal);
                   console.log('iframe load事件检测到URL变化:', frameSrc, 'isExternal:', isExternal);
                 }
+              }
+              
+              // 尝试检测嵌套iframe
+              try {
+                const nestedFrames = gameFrame.contentDocument.querySelectorAll('iframe');
+                if (nestedFrames.length > 0) {
+                  for (let i = 0; i < nestedFrames.length; i++) {
+                    const nestedFrame = nestedFrames[i];
+                    if (nestedFrame.src && nestedFrame.src !== 'about:blank') {
+                      const nestedIsExternal = isExternalGameDomain(nestedFrame.src);
+                      console.log('load事件检测到嵌套iframe:', nestedFrame.src, 'isExternal:', nestedIsExternal);
+                      if (nestedIsExternal) {
+                        toggleShortcutButtons(true);
+                        console.log('load事件检测到外部游戏，显示快捷按钮');
+                        break;
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                console.log('load事件无法访问嵌套iframe（跨域限制）');
               }
             }, 100);
           });

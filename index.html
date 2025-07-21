@@ -285,6 +285,10 @@
               });
             }
             break;
+          case 'back_handled':
+            // 游戏已处理返回操作，不显示退出确认
+            window._backHandledByGame = true;
+            break;
         }
       }
     });
@@ -292,14 +296,27 @@
     tg.BackButton.onClick(() => {
       if (gameFrame.src.includes(baseGameUrl)) {
         trackEvent('back_button_clicked');
-        tg.showConfirm(t.exitConfirm, (confirmed) => {
-          if (confirmed) {
-            trackEvent('app_exit_confirmed');
-            tg.close();
-          } else {
-            trackEvent('app_exit_cancelled');
+        
+        // 先通知游戏处理返回操作
+        gameFrame.contentWindow.postMessage({
+          type: 'tg_back_button_pressed'
+        }, baseGameUrl);
+        
+        // 给游戏100ms时间处理，如果游戏没有阻止默认行为，则显示退出确认
+        setTimeout(() => {
+          // 如果游戏处理了返回，它应该发送一个消息告诉我们
+          if (!window._backHandledByGame) {
+            tg.showConfirm(t.exitConfirm, (confirmed) => {
+              if (confirmed) {
+                trackEvent('app_exit_confirmed');
+                tg.close();
+              } else {
+                trackEvent('app_exit_cancelled');
+              }
+            });
           }
-        });
+          window._backHandledByGame = false;
+        }, 100);
       }
     });
 

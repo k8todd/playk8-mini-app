@@ -340,6 +340,89 @@
           console.log('无法访问嵌套iframe（跨域限制）');
         }
         
+        // 基于游戏特征强制显示快捷按钮
+        // 如果检测到游戏相关元素或特征，强制显示快捷按钮
+        setTimeout(() => {
+          try {
+            // 检查是否有游戏相关元素
+            const hasCanvas = gameFrame.contentDocument.querySelector('canvas');
+            const hasGameElements = gameFrame.contentDocument.querySelectorAll('[class*="game"], [id*="game"], [class*="slot"], [id*="slot"]');
+            const hasGameScripts = gameFrame.contentDocument.querySelectorAll('script[src*="game"], script[src*="slot"]');
+            
+            if (hasCanvas || hasGameElements.length > 0 || hasGameScripts.length > 0) {
+              console.log('检测到游戏元素，强制显示快捷按钮');
+              console.log('- Canvas:', !!hasCanvas);
+              console.log('- Game elements:', hasGameElements.length);
+              console.log('- Game scripts:', hasGameScripts.length);
+              toggleShortcutButtons(true);
+            }
+          } catch (e) {
+            console.log('无法检查游戏元素（跨域限制）');
+          }
+        }, 2000);
+        
+        // 备用方案：基于时间延迟强制显示快捷按钮
+        // 如果游戏加载超过8秒，假设已经进入外部游戏
+        setTimeout(() => {
+          console.log('8秒后强制显示快捷按钮（备用方案）');
+          toggleShortcutButtons(true);
+          
+          // 更新调试信息
+          if (window.debugInfo) {
+            window.debugInfo.innerHTML = `
+              <div>主iframe URL: ${currentSrc}</div>
+              <div>主iframe是否外部: ${isExternal}</div>
+              <div>快捷按钮显示: ${shortcutButtons.style.display}</div>
+              <div>强制显示: 已启用（8秒延迟）</div>
+            `;
+          }
+        }, 8000);
+        
+        // 监听游戏加载完成事件
+        const checkGameLoaded = () => {
+          try {
+            // 检查是否有游戏相关的全局变量或对象
+            const hasGameWindow = gameFrame.contentWindow && (
+              gameFrame.contentWindow.game ||
+              gameFrame.contentWindow.Game ||
+              gameFrame.contentWindow.slot ||
+              gameFrame.contentWindow.Slot ||
+              gameFrame.contentWindow.artemis ||
+              gameFrame.contentWindow.Artemis
+            );
+            
+            if (hasGameWindow) {
+              console.log('检测到游戏对象，显示快捷按钮');
+              toggleShortcutButtons(true);
+              
+              if (window.debugInfo) {
+                window.debugInfo.innerHTML = `
+                  <div>主iframe URL: ${currentSrc}</div>
+                  <div>主iframe是否外部: ${isExternal}</div>
+                  <div>快捷按钮显示: ${shortcutButtons.style.display}</div>
+                  <div>强制显示: 检测到游戏对象</div>
+                `;
+              }
+              return true;
+            }
+          } catch (e) {
+            // 跨域限制，忽略
+          }
+          return false;
+        };
+        
+        // 定期检查游戏是否加载完成
+        const gameCheckInterval = setInterval(() => {
+          if (checkGameLoaded()) {
+            clearInterval(gameCheckInterval);
+          }
+        }, 1000);
+        
+        // 10秒后停止检查
+        setTimeout(() => {
+          clearInterval(gameCheckInterval);
+        }, 10000);
+        
         // 添加调试信息到页面
         const debugInfo = document.createElement('div');
         debugInfo.style.cssText = `
@@ -359,8 +442,12 @@
           <div>主iframe URL: ${currentSrc}</div>
           <div>主iframe是否外部: ${isExternal}</div>
           <div>快捷按钮显示: ${shortcutButtons.style.display}</div>
+          <div>强制显示: 5秒后检测游戏元素</div>
         `;
         document.body.appendChild(debugInfo);
+        
+        // 将debugInfo设为全局变量以便后续更新
+        window.debugInfo = debugInfo;
       }
     }, 3000);
     

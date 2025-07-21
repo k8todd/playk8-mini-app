@@ -51,6 +51,11 @@
       z-index: 1001;
     }
     
+    /* 调试模式 - 临时显示快捷按钮 */
+    .shortcut-buttons.debug {
+      display: flex !important;
+    }
+    
     /* 快捷按钮样式 */
     .shortcut-btn {
       width: 58px;
@@ -285,8 +290,8 @@
         // 启用增强的导航跟踪
         enhancedNavigationTracking();
         
-        // 设置定时器监听URL变化（对于单页应用）
-        setInterval(trackNavigation, 500);
+        // 设置定时器监听URL变化（对于单页应用）- 减少频率
+        setInterval(trackNavigation, 2000);
         
         // 监听登录状态变化
         setTimeout(() => {
@@ -306,8 +311,21 @@
           // 检查并处理自动登录
           checkAndHandleAutoLogin();
           
-          // 初始化快捷按钮
-          initShortcutButtons();
+              // 初始化快捷按钮
+    initShortcutButtons();
+    
+    // 调试：强制显示快捷按钮（临时）
+    console.log('调试：强制显示快捷按钮');
+    shortcutButtons.classList.add('debug');
+    shortcutButtons.style.display = 'flex';
+    
+    // 检查当前URL状态
+    console.log('当前iframe src:', gameFrame.src);
+    console.log('快捷按钮状态:', {
+      display: shortcutButtons.style.display,
+      className: shortcutButtons.className,
+      isVisible: shortcutButtons.offsetParent !== null
+    });
         }, 2000);
       };
       gameFrame.onerror = () => {
@@ -840,44 +858,65 @@
     let isNavigatingBack = false;
 
     // 监听iframe导航
+    let lastTrackedUrl = '';
+    let lastExternalState = null;
+    let crossOriginLogged = false;
+    
     function trackNavigation() {
       try {
         const currentUrl = gameFrame.contentWindow.location.href;
-        if (!isNavigatingBack && currentUrl !== 'about:blank' && currentUrl !== navigationHistory[currentHistoryIndex]) {
-          // 新导航，清除前进历史
-          navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
-          navigationHistory.push(currentUrl);
-          currentHistoryIndex = navigationHistory.length - 1;
+        if (!isNavigatingBack && currentUrl !== 'about:blank' && currentUrl !== lastTrackedUrl) {
+          lastTrackedUrl = currentUrl;
           
-          // 如果有多个页面，显示返回按钮
-          if (navigationHistory.length > 1) {
-            if (tg.BackButton && tg.BackButton.show) {
-              tg.BackButton.show();
+          if (currentUrl !== navigationHistory[currentHistoryIndex]) {
+            // 新导航，清除前进历史
+            navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
+            navigationHistory.push(currentUrl);
+            currentHistoryIndex = navigationHistory.length - 1;
+            
+            // 如果有多个页面，显示返回按钮
+            if (navigationHistory.length > 1) {
+              if (tg.BackButton && tg.BackButton.show) {
+                tg.BackButton.show();
+              }
+              backButton.style.display = 'flex';
             }
-            backButton.style.display = 'flex';
+            
+            // 检查是否在外部游戏域名，显示/隐藏快捷按钮
+            const isExternal = isExternalGameDomain(currentUrl);
+            if (isExternal !== lastExternalState) {
+              lastExternalState = isExternal;
+              toggleShortcutButtons(isExternal);
+            }
+            
+            console.log('导航历史更新:', {
+              current: currentUrl,
+              history: navigationHistory,
+              index: currentHistoryIndex,
+              isExternal: isExternal
+            });
           }
-          
-          // 检查是否在外部游戏域名，显示/隐藏快捷按钮
-          const isExternal = isExternalGameDomain(currentUrl);
-          toggleShortcutButtons(isExternal);
-          
-          console.log('导航历史更新:', {
-            current: currentUrl,
-            history: navigationHistory,
-            index: currentHistoryIndex,
-            isExternal: isExternal
-          });
         }
         isNavigatingBack = false;
       } catch (e) {
-        // 跨域时无法访问contentWindow.location
-        console.log('无法访问iframe location（跨域限制）');
+        // 减少跨域限制日志输出
+        if (!crossOriginLogged) {
+          console.log('无法访问iframe location（跨域限制）');
+          crossOriginLogged = true;
+          // 5秒后重置日志标志
+          setTimeout(() => {
+            crossOriginLogged = false;
+          }, 5000);
+        }
         
         // 尝试通过src检测外部域名
         const currentSrc = gameFrame.src;
         if (currentSrc !== 'about:blank') {
           const isExternal = isExternalGameDomain(currentSrc);
-          toggleShortcutButtons(isExternal);
+          if (isExternal !== lastExternalState) {
+            lastExternalState = isExternal;
+            toggleShortcutButtons(isExternal);
+          }
         }
       }
     }
@@ -886,21 +925,36 @@
     function isExternalGameDomain(url) {
       try {
         const urlObj = new URL(url);
-        return urlObj.hostname !== 'k8play7.com' && 
-               !urlObj.hostname.endsWith('.k8play7.com');
+        const isExternal = urlObj.hostname !== 'k8play7.com' && 
+                          !urlObj.hostname.endsWith('.k8play7.com');
+        
+        // 调试信息
+        console.log('外部域名检测:', {
+          url: url,
+          hostname: urlObj.hostname,
+          isExternal: isExternal
+        });
+        
+        return isExternal;
       } catch (e) {
+        console.log('URL解析失败:', url, e);
         return false;
       }
     }
     
     // 显示/隐藏快捷按钮
+    let lastShortcutState = null;
+    
     function toggleShortcutButtons(show) {
-      if (show) {
-        shortcutButtons.style.display = 'flex';
-        console.log('显示快捷按钮 - 检测到外部游戏域名');
-      } else {
-        shortcutButtons.style.display = 'none';
-        console.log('隐藏快捷按钮 - 返回K8Play主站');
+      if (show !== lastShortcutState) {
+        lastShortcutState = show;
+        if (show) {
+          shortcutButtons.style.display = 'flex';
+          console.log('显示快捷按钮 - 检测到外部游戏域名');
+        } else {
+          shortcutButtons.style.display = 'none';
+          console.log('隐藏快捷按钮 - 返回K8Play主站');
+        }
       }
     }
     
@@ -947,42 +1001,48 @@
 
     // 增强的导航跟踪（处理SPA应用）
     function enhancedNavigationTracking() {
+      let lastSpaUrl = '';
+      
       // 监听来自K8Play的导航事件
       window.addEventListener('message', (event) => {
         // 放宽origin检查，允许来自任何域名的消息
         // if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
         
-                 if (event.data.type === 'navigation_change') {
-           const newUrl = event.data.url;
-           if (newUrl && !isNavigatingBack && newUrl !== navigationHistory[currentHistoryIndex]) {
-             // 新导航，添加到历史记录
-             navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
-             navigationHistory.push(newUrl);
-             currentHistoryIndex = navigationHistory.length - 1;
-             
-             // 显示返回按钮
-             if (navigationHistory.length > 1) {
-               if (tg.BackButton && tg.BackButton.show) {
-                 tg.BackButton.show();
-               }
-               backButton.style.display = 'flex';
-             }
-             
-             // 检查是否在外部游戏域名，显示/隐藏快捷按钮
-             const isExternal = isExternalGameDomain(newUrl);
-             toggleShortcutButtons(isExternal);
-             
-             console.log('SPA导航检测:', {
-               url: newUrl,
-               history: navigationHistory,
-               index: currentHistoryIndex,
-               isExternal: isExternal
-             });
-           }
-         }
+        if (event.data.type === 'navigation_change') {
+          const newUrl = event.data.url;
+          if (newUrl && !isNavigatingBack && newUrl !== lastSpaUrl) {
+            lastSpaUrl = newUrl;
+            
+            if (newUrl !== navigationHistory[currentHistoryIndex]) {
+              // 新导航，添加到历史记录
+              navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
+              navigationHistory.push(newUrl);
+              currentHistoryIndex = navigationHistory.length - 1;
+              
+              // 显示返回按钮
+              if (navigationHistory.length > 1) {
+                if (tg.BackButton && tg.BackButton.show) {
+                  tg.BackButton.show();
+                }
+                backButton.style.display = 'flex';
+              }
+              
+              // 检查是否在外部游戏域名，显示/隐藏快捷按钮
+              const isExternal = isExternalGameDomain(newUrl);
+              toggleShortcutButtons(isExternal);
+              
+              console.log('SPA导航检测:', {
+                url: newUrl,
+                history: navigationHistory,
+                index: currentHistoryIndex,
+                isExternal: isExternal
+              });
+            }
+          }
+        }
       });
       
-      // 定期检查URL变化（备用方案）
+      // 定期检查URL变化（备用方案）- 减少频率
       let lastKnownUrl = gameFrame.src;
       setInterval(() => {
         try {
@@ -994,7 +1054,7 @@
         } catch (e) {
           // 跨域限制，忽略
         }
-      }, 1000);
+      }, 2000); // 从1秒改为2秒
     }
 
     // 处理返回逻辑
@@ -1056,6 +1116,65 @@
     window.addEventListener('unhandledrejection', (event) => {
       console.log('未处理的Promise拒绝:', event.reason);
     });
+    
+    // 性能监控 - 减少日志输出
+    let logCount = 0;
+    const originalLog = console.log;
+    console.log = function(...args) {
+      // 限制重复日志输出
+      const message = args.join(' ');
+      if (message.includes('无法访问iframe location') || 
+          message.includes('隐藏快捷按钮') || 
+          message.includes('显示快捷按钮')) {
+        logCount++;
+        if (logCount <= 3) { // 只显示前3次
+          originalLog.apply(console, args);
+        }
+      } else {
+        originalLog.apply(console, args);
+      }
+    };
+    
+    // 添加手动测试按钮（临时调试用）
+    const testButton = document.createElement('button');
+    testButton.textContent = '测试快捷按钮';
+    testButton.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 10000;
+      background: red;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    `;
+    testButton.onclick = () => {
+      console.log('手动测试快捷按钮');
+      shortcutButtons.style.display = 'flex';
+      console.log('快捷按钮已强制显示');
+      
+      // 检查当前状态
+      console.log('当前状态检查:');
+      console.log('- iframe src:', gameFrame.src);
+      console.log('- 快捷按钮显示状态:', shortcutButtons.style.display);
+      console.log('- 是否外部域名:', isExternalGameDomain(gameFrame.src));
+    };
+    document.body.appendChild(testButton);
+    
+    // 立即检查当前状态
+    setTimeout(() => {
+      console.log('=== 初始状态检查 ===');
+      console.log('iframe src:', gameFrame.src);
+      console.log('快捷按钮元素:', shortcutButtons);
+      console.log('快捷按钮显示状态:', shortcutButtons.style.display);
+      console.log('是否外部域名:', isExternalGameDomain(gameFrame.src));
+      
+      // 强制显示快捷按钮进行测试
+      shortcutButtons.style.display = 'flex';
+      console.log('快捷按钮已强制显示用于测试');
+    }, 1000);
   </script>
 </body>
 </html>

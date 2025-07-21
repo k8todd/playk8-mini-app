@@ -114,8 +114,17 @@
       gameFrame.src = gameUrl;
       gameFrame.onload = () => {
         tg.ready();
-        tg.BackButton.show();
         trackEvent('game_loaded');
+        
+        // 初始化导航历史
+        navigationHistory = [gameUrl];
+        currentHistoryIndex = 0;
+        
+        // 开始跟踪导航
+        trackNavigation();
+        
+        // 设置定时器监听URL变化（对于单页应用）
+        setInterval(trackNavigation, 500);
       };
       gameFrame.onerror = () => {
         console.error('Failed to load game');
@@ -285,38 +294,67 @@
               });
             }
             break;
-          case 'back_handled':
-            // 游戏已处理返回操作，不显示退出确认
-            window._backHandledByGame = true;
+          case 'navigate_to':
+            // 游戏请求导航到指定URL
+            if (event.data.url) {
+              gameFrame.src = event.data.url;
+            }
             break;
         }
       }
     });
 
-    tg.BackButton.onClick(() => {
-      if (gameFrame.src.includes(baseGameUrl)) {
-        trackEvent('back_button_clicked');
-        
-        // 先通知游戏处理返回操作
-        gameFrame.contentWindow.postMessage({
-          type: 'tg_back_button_pressed'
-        }, baseGameUrl);
-        
-        // 给游戏100ms时间处理，如果游戏没有阻止默认行为，则显示退出确认
-        setTimeout(() => {
-          // 如果游戏处理了返回，它应该发送一个消息告诉我们
-          if (!window._backHandledByGame) {
-            tg.showConfirm(t.exitConfirm, (confirmed) => {
-              if (confirmed) {
-                trackEvent('app_exit_confirmed');
-                tg.close();
-              } else {
-                trackEvent('app_exit_cancelled');
-              }
-            });
+    // 跟踪iframe导航历史
+    let navigationHistory = [];
+    let currentHistoryIndex = -1;
+    let isNavigatingBack = false;
+
+    // 监听iframe导航
+    function trackNavigation() {
+      try {
+        const currentUrl = gameFrame.contentWindow.location.href;
+        if (!isNavigatingBack && currentUrl !== 'about:blank' && currentUrl !== navigationHistory[currentHistoryIndex]) {
+          // 新导航，清除前进历史
+          navigationHistory = navigationHistory.slice(0, currentHistoryIndex + 1);
+          navigationHistory.push(currentUrl);
+          currentHistoryIndex = navigationHistory.length - 1;
+          
+          // 如果有多个页面，显示返回按钮
+          if (navigationHistory.length > 1) {
+            tg.BackButton.show();
           }
-          window._backHandledByGame = false;
-        }, 100);
+        }
+        isNavigatingBack = false;
+      } catch (e) {
+        // 跨域时无法访问contentWindow.location
+      }
+    }
+
+    tg.BackButton.onClick(() => {
+      trackEvent('back_button_clicked');
+      
+      if (currentHistoryIndex > 0) {
+        // 有历史记录，返回上一页
+        isNavigatingBack = true;
+        currentHistoryIndex--;
+        gameFrame.src = navigationHistory[currentHistoryIndex];
+        
+        // 如果回到第一页，隐藏返回按钮
+        if (currentHistoryIndex === 0) {
+          tg.BackButton.hide();
+        }
+        
+        trackEvent('navigated_back', { url: navigationHistory[currentHistoryIndex] });
+      } else {
+        // 没有历史记录，显示退出确认
+        tg.showConfirm(t.exitConfirm, (confirmed) => {
+          if (confirmed) {
+            trackEvent('app_exit_confirmed');
+            tg.close();
+          } else {
+            trackEvent('app_exit_cancelled');
+          }
+        });
       }
     });
 

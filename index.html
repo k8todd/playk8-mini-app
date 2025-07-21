@@ -11,38 +11,21 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body, html { height: 100%; width: 100%; background-color: #121212; }
     .container { display: flex; flex-direction: column; min-height: 100%; width: 100%; }
-    .loading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: #121212;
-      z-index: 1000;
-    }
-    .spinner {
-      width: 50px; height: 50px;
-      border: 5px solid rgba(255, 255, 255, 0.1);
-      border-radius: 50%;
-      border-top-color: #E6601B;
-      animation: spin 1s ease-in-out infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
     iframe { flex: 1; width: 100%; height: 100%; border: none; }
   </style>
 </head>
 <body>
-  <div class="loading" id="loading">
-    <div class="spinner"></div>
-  </div>
   <div class="container">
-    <iframe id="gameFrame" src="about:blank" allowfullscreen></iframe>
+    <iframe id="gameFrame" src="about:blank" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
   </div>
 
   <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
     const param = tg.initDataUnsafe?.start_param;
+    const userId = tg.initDataUnsafe?.user?.id;
+    const username = tg.initDataUnsafe?.user?.username;
+    const firstName = tg.initDataUnsafe?.user?.first_name;
 
     const userLang = tg.initDataUnsafe?.user?.language_code || 'en';
     const translations = {
@@ -53,39 +36,280 @@
     const t = translations[userLang] || translations.en;
 
     const gameFrame = document.getElementById('gameFrame');
-    const loadingElement = document.getElementById('loading');
 
+    // 构建包含用户信息的游戏URL
     const baseGameUrl = 'https://k8play7.com/';
-    const gameUrl = param ? `${baseGameUrl}?invite=${encodeURIComponent(param)}` : baseGameUrl;
+    const urlParams = new URLSearchParams();
+    if (param) urlParams.append('invite', param);
+    if (userId) urlParams.append('tg_user_id', userId);
+    if (username) urlParams.append('tg_username', username);
+    if (firstName) urlParams.append('tg_first_name', firstName);
+    urlParams.append('tg_lang', userLang);
+    urlParams.append('tg_platform', tg.platform);
+    urlParams.append('tg_version', tg.version);
+    urlParams.append('tg_theme', tg.colorScheme || 'light');
+    urlParams.append('tg_init_data', tg.initData || '');
+    
+    const gameUrl = urlParams.toString() ? `${baseGameUrl}?${urlParams.toString()}` : baseGameUrl;
 
-    function loadGame() {
-      loadingElement.style.display = 'flex';
-      gameFrame.src = gameUrl;
-      gameFrame.onload = () => {
-        loadingElement.style.display = 'none';
-        tg.ready();
+    // 网络状态监测
+    let isOnline = navigator.onLine;
+    window.addEventListener('online', () => {
+      isOnline = true;
+      trackEvent('network_online');
+      gameFrame.contentWindow?.postMessage({
+        type: 'network_status',
+        online: true
+      }, baseGameUrl);
+    });
+
+    window.addEventListener('offline', () => {
+      isOnline = false;
+      trackEvent('network_offline');
+      tg.showAlert('网络连接已断开 / Network disconnected / ネットワーク接続が切断されました');
+      gameFrame.contentWindow?.postMessage({
+        type: 'network_status',
+        online: false
+      }, baseGameUrl);
+    });
+
+    // 设备信息
+    function getDeviceInfo() {
+      return {
+        platform: tg.platform,
+        version: tg.version,
+        colorScheme: tg.colorScheme,
+        viewportHeight: tg.viewportHeight,
+        viewportStableHeight: tg.viewportStableHeight,
+        isExpanded: tg.isExpanded,
+        language: userLang,
+        online: isOnline
       };
     }
 
+    // 用户行为分析
+    function trackEvent(eventName, data = {}) {
+      const eventData = {
+        event: eventName,
+        user_id: userId,
+        username: username,
+        platform: tg.platform,
+        timestamp: new Date().toISOString(),
+        ...data
+      };
+      
+      // 发送给游戏iframe
+      if (gameFrame.contentWindow) {
+        gameFrame.contentWindow.postMessage({
+          type: 'tg_analytics',
+          data: eventData
+        }, baseGameUrl);
+      }
+      
+      console.log('Track event:', eventData);
+    }
+
+    function loadGame() {
+      trackEvent('app_start', { invite_code: param });
+      gameFrame.src = gameUrl;
+      gameFrame.onload = () => {
+        tg.ready();
+        tg.BackButton.show();
+        trackEvent('game_loaded');
+      };
+      gameFrame.onerror = () => {
+        console.error('Failed to load game');
+        tg.showAlert('Failed to load game. Please try again later.');
+        trackEvent('game_load_error');
+      };
+    }
+
+    let resizeTimeout;
     function resizeIframe() {
-      gameFrame.style.height = window.innerHeight + 'px';
+      if (resizeTimeout) cancelAnimationFrame(resizeTimeout);
+      resizeTimeout = requestAnimationFrame(() => {
+        gameFrame.style.height = window.innerHeight + 'px';
+      });
     }
 
     resizeIframe();
     window.addEventListener('resize', resizeIframe);
 
+    // 监听来自游戏的消息
+    window.addEventListener('message', (event) => {
+      if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
+      
+      // 处理游戏发来的消息
+      if (event.data.type === 'game_event') {
+        trackEvent(event.data.eventName, event.data.data);
+      }
+      
+      // 处理游戏请求Telegram操作
+      if (event.data.type === 'tg_action') {
+        switch (event.data.action) {
+          case 'close':
+            tg.close();
+            break;
+          case 'share':
+            // 实现分享功能
+            if (event.data.text && event.data.url) {
+              const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(event.data.url)}&text=${encodeURIComponent(event.data.text)}`;
+              tg.openTelegramLink(shareUrl);
+            }
+            break;
+          case 'show_alert':
+            tg.showAlert(event.data.message);
+            break;
+          case 'show_confirm':
+            tg.showConfirm(event.data.message, (confirmed) => {
+              gameFrame.contentWindow.postMessage({
+                type: 'tg_confirm_result',
+                id: event.data.id,
+                confirmed: confirmed
+              }, baseGameUrl);
+            });
+            break;
+          case 'show_popup':
+            if (event.data.params) {
+              tg.showPopup(event.data.params, (buttonId) => {
+                gameFrame.contentWindow.postMessage({
+                  type: 'tg_popup_result',
+                  id: event.data.id,
+                  buttonId: buttonId
+                }, baseGameUrl);
+              });
+            }
+            break;
+          case 'request_contact':
+            tg.requestContact((shared) => {
+              gameFrame.contentWindow.postMessage({
+                type: 'tg_contact_result',
+                shared: shared
+              }, baseGameUrl);
+            });
+            break;
+          case 'haptic':
+            // 触觉反馈
+            if (tg.HapticFeedback) {
+              switch (event.data.style) {
+                case 'light':
+                  tg.HapticFeedback.impactOccurred('light');
+                  break;
+                case 'medium':
+                  tg.HapticFeedback.impactOccurred('medium');
+                  break;
+                case 'heavy':
+                  tg.HapticFeedback.impactOccurred('heavy');
+                  break;
+                case 'success':
+                  tg.HapticFeedback.notificationOccurred('success');
+                  break;
+                case 'warning':
+                  tg.HapticFeedback.notificationOccurred('warning');
+                  break;
+                case 'error':
+                  tg.HapticFeedback.notificationOccurred('error');
+                  break;
+              }
+            }
+            break;
+          case 'open_link':
+            if (event.data.url) {
+              tg.openLink(event.data.url);
+            }
+            break;
+          case 'set_header_color':
+            if (event.data.color) {
+              tg.setHeaderColor(event.data.color);
+            }
+            break;
+          case 'set_background_color':
+            if (event.data.color) {
+              tg.setBackgroundColor(event.data.color);
+            }
+            break;
+          case 'get_device_info':
+            gameFrame.contentWindow.postMessage({
+              type: 'device_info',
+              data: getDeviceInfo()
+            }, baseGameUrl);
+            break;
+          case 'enable_closing_confirmation':
+            tg.enableClosingConfirmation();
+            break;
+          case 'disable_closing_confirmation':
+            tg.disableClosingConfirmation();
+            break;
+          case 'ready_to_close':
+            tg.ready();
+            break;
+          case 'scan_qr':
+            if (tg.showScanQrPopup) {
+              tg.showScanQrPopup({
+                text: event.data.text || 'Scan QR Code'
+              }, (text) => {
+                gameFrame.contentWindow.postMessage({
+                  type: 'qr_scan_result',
+                  text: text || null
+                }, baseGameUrl);
+              });
+            }
+            break;
+          case 'request_write_access':
+            if (tg.requestWriteAccess) {
+              tg.requestWriteAccess((granted) => {
+                gameFrame.contentWindow.postMessage({
+                  type: 'write_access_result',
+                  granted: granted
+                }, baseGameUrl);
+              });
+            }
+            break;
+          case 'request_phone':
+            if (tg.requestContact) {
+              tg.requestContact((result) => {
+                gameFrame.contentWindow.postMessage({
+                  type: 'phone_result',
+                  result: result
+                }, baseGameUrl);
+              });
+            }
+            break;
+          case 'open_invoice':
+            if (event.data.url && tg.openInvoice) {
+              tg.openInvoice(event.data.url, (status) => {
+                gameFrame.contentWindow.postMessage({
+                  type: 'invoice_status',
+                  status: status
+                }, baseGameUrl);
+              });
+            }
+            break;
+        }
+      }
+    });
+
     tg.BackButton.onClick(() => {
       if (gameFrame.src.includes(baseGameUrl)) {
+        trackEvent('back_button_clicked');
         tg.showConfirm(t.exitConfirm, (confirmed) => {
           if (confirmed) {
-            gameFrame.src = 'about:blank';
-            loadGame();
+            trackEvent('app_exit_confirmed');
+            tg.close();
+          } else {
+            trackEvent('app_exit_cancelled');
           }
         });
       }
     });
 
     tg.onEvent('viewportChanged', resizeIframe);
+    
+    // 页面可见性变化追踪
+    document.addEventListener('visibilitychange', () => {
+      trackEvent(document.hidden ? 'app_background' : 'app_foreground');
+    });
+
     window.addEventListener('load', loadGame);
   </script>
 </body>

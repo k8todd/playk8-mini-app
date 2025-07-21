@@ -186,20 +186,28 @@
     window.addEventListener('online', () => {
       isOnline = true;
       trackEvent('network_online');
-      gameFrame.contentWindow?.postMessage({
-        type: 'network_status',
-        online: true
-      }, baseGameUrl);
+      try {
+        gameFrame.contentWindow?.postMessage({
+          type: 'network_status',
+          online: true
+        }, '*');
+      } catch (e) {
+        console.log('发送网络状态失败:', e.message);
+      }
     });
 
     window.addEventListener('offline', () => {
       isOnline = false;
       trackEvent('network_offline');
       tg.showAlert('网络连接已断开 / Network disconnected / ネットワーク接続が切断されました');
-      gameFrame.contentWindow?.postMessage({
-        type: 'network_status',
-        online: false
-      }, baseGameUrl);
+      try {
+        gameFrame.contentWindow?.postMessage({
+          type: 'network_status',
+          online: false
+        }, '*');
+      } catch (e) {
+        console.log('发送网络状态失败:', e.message);
+      }
     });
 
     // 设备信息
@@ -229,10 +237,14 @@
       
       // 发送给游戏iframe
       if (gameFrame.contentWindow) {
-        gameFrame.contentWindow.postMessage({
-          type: 'tg_analytics',
-          data: eventData
-        }, baseGameUrl);
+        try {
+          gameFrame.contentWindow.postMessage({
+            type: 'tg_analytics',
+            data: eventData
+          }, '*');
+        } catch (e) {
+          console.log('发送分析数据失败:', e.message);
+        }
       }
       
       console.log('Track event:', eventData);
@@ -278,11 +290,15 @@
         
         // 监听登录状态变化
         setTimeout(() => {
-          gameFrame.contentWindow.postMessage({
-            type: 'request_login_state',
-            user_id: userId,
-            username: username
-          }, baseGameUrl);
+          try {
+            gameFrame.contentWindow.postMessage({
+              type: 'request_login_state',
+              user_id: userId,
+              username: username
+            }, '*');
+          } catch (e) {
+            console.log('发送登录状态请求失败:', e.message);
+          }
           
           // 注入登录状态管理脚本到游戏页面
           injectLoginStateScript();
@@ -325,12 +341,16 @@
             
             // 向游戏发送自动登录请求
             setTimeout(() => {
-              gameFrame.contentWindow.postMessage({
-                type: 'auto_login_request',
-                user_id: loginData.user_id,
-                username: loginData.username,
-                saved_url: loginData.url
-              }, baseGameUrl);
+              try {
+                gameFrame.contentWindow.postMessage({
+                  type: 'auto_login_request',
+                  user_id: loginData.user_id,
+                  username: loginData.username,
+                  saved_url: loginData.url
+                }, '*');
+              } catch (e) {
+                console.log('发送自动登录请求失败:', e.message);
+              }
             }, 1000);
           }
         } catch (e) {
@@ -339,228 +359,233 @@
       }
     }
 
-    // 注入登录状态管理脚本到游戏页面
+        // 注入登录状态管理脚本到游戏页面
     function injectLoginStateScript() {
-      try {
-        const script = `
-          (function() {
-            // 登录状态管理
-            window.k8playLoginManager = {
-              // 检查是否在Telegram环境中
-              isInTelegram: function() {
-                return window.parent && window.parent !== window && 
-                       window.parent.location.href.includes('telegram');
-              },
-              
-              // 检查用户是否已登录
-              isUserLoggedIn: function() {
-                // 检查常见的登录标识
-                return !!(
-                  document.cookie.includes('session') ||
-                  document.cookie.includes('token') ||
-                  document.cookie.includes('auth') ||
-                  localStorage.getItem('user') ||
-                  localStorage.getItem('token') ||
-                  localStorage.getItem('session') ||
-                  document.querySelector('[data-user]') ||
-                  document.querySelector('.user-info') ||
-                  document.querySelector('.logged-in')
-                );
-              },
-              
-              // 保存登录状态
-              saveLoginState: function() {
-                if (this.isInTelegram()) {
-                  window.parent.postMessage({
-                    type: 'save_login_state',
-                    url: window.location.href
-                  }, '*');
-                  console.log('登录状态已保存到Telegram应用');
-                }
-              },
-              
-              // 清除登录状态
-              clearLoginState: function() {
-                if (this.isInTelegram()) {
-                  window.parent.postMessage({
-                    type: 'clear_login_state'
-                  }, '*');
-                  console.log('登录状态已从Telegram应用清除');
-                }
-              },
-              
-              // 监听登录状态请求
-              init: function() {
-                // 监听来自Telegram的消息
-                window.addEventListener('message', (event) => {
-                  if (event.data.type === 'request_login_state') {
-                    if (this.isUserLoggedIn()) {
-                      this.saveLoginState();
-                    }
-                  }
-                });
-                
-                               // 监听页面变化（用于单页应用）
-               let currentUrl = window.location.href;
-               const observer = new MutationObserver(() => {
-                 if (window.location.href !== currentUrl) {
-                   currentUrl = window.location.href;
-                   if (this.isUserLoggedIn()) {
-                     this.saveLoginState();
-                   }
-                   
-                   // 发送导航变化事件到Telegram应用
-                   if (this.isInTelegram()) {
-                     window.parent.postMessage({
-                       type: 'navigation_change',
-                       url: window.location.href
-                     }, '*');
-                     
-                     // 检查是否在外部游戏域名
-                     const isExternal = window.location.hostname !== 'k8play7.com' && 
-                                      !window.location.hostname.endsWith('.k8play7.com');
-                     window.parent.postMessage({
-                       type: 'external_domain_check',
-                       isExternal: isExternal,
-                       url: window.location.href
-                     }, '*');
-                   }
-                 }
-               });
-               observer.observe(document.body, { childList: true, subtree: true });
-               
-               // 监听pushState和replaceState（SPA路由变化）
-               const originalPushState = history.pushState;
-               const originalReplaceState = history.replaceState;
-               
-               history.pushState = function() {
-                 originalPushState.apply(this, arguments);
-                 if (window.k8playLoginManager.isInTelegram()) {
-                   window.parent.postMessage({
-                     type: 'navigation_change',
-                     url: window.location.href
-                   }, '*');
-                 }
-               };
-               
-               history.replaceState = function() {
-                 originalReplaceState.apply(this, arguments);
-                 if (window.k8playLoginManager.isInTelegram()) {
-                   window.parent.postMessage({
-                     type: 'navigation_change',
-                     url: window.location.href
-                   }, '*');
-                 }
-               };
-               
-               // 监听popstate事件（浏览器前进后退）
-               window.addEventListener('popstate', () => {
-                 if (window.k8playLoginManager.isInTelegram()) {
-                   window.parent.postMessage({
-                     type: 'navigation_change',
-                     url: window.location.href
-                   }, '*');
-                 }
-               });
-                
-                // 监听表单提交（登录表单）
-                document.addEventListener('submit', (event) => {
-                  const form = event.target;
-                  if (form.action && form.action.includes('login')) {
-                    // 延迟检查登录状态
-                    setTimeout(() => {
-                      if (this.isUserLoggedIn()) {
-                        this.saveLoginState();
-                      }
-                    }, 1000);
-                  }
-                });
-                
-                // 监听AJAX请求完成
-                const originalXHROpen = XMLHttpRequest.prototype.open;
-                XMLHttpRequest.prototype.open = function() {
-                  this.addEventListener('load', function() {
-                    if (this.responseURL && this.responseURL.includes('login')) {
-                      setTimeout(() => {
-                        if (window.k8playLoginManager.isUserLoggedIn()) {
-                          window.k8playLoginManager.saveLoginState();
-                        }
-                      }, 500);
-                    }
-                  });
-                  originalXHROpen.apply(this, arguments);
-                };
-                
-                // 监听fetch请求
-                const originalFetch = window.fetch;
-                window.fetch = function() {
-                  return originalFetch.apply(this, arguments).then(response => {
-                    if (response.url && response.url.includes('login')) {
-                      setTimeout(() => {
-                        if (window.k8playLoginManager.isUserLoggedIn()) {
-                          window.k8playLoginManager.saveLoginState();
-                        }
-                      }, 500);
-                    }
-                    return response;
-                  });
-                };
-                
-                // 定期检查登录状态
-                setInterval(() => {
+      const loginScript = `
+        (function() {
+          // 登录状态管理
+          window.k8playLoginManager = {
+            // 检查是否在Telegram环境中
+            isInTelegram: function() {
+              return window.parent && window.parent !== window && 
+                     window.parent.location.href.includes('telegram');
+            },
+            
+            // 检查用户是否已登录
+            isUserLoggedIn: function() {
+              // 检查常见的登录标识
+              return !!(
+                document.cookie.includes('session') ||
+                document.cookie.includes('token') ||
+                document.cookie.includes('auth') ||
+                localStorage.getItem('user') ||
+                localStorage.getItem('token') ||
+                localStorage.getItem('session') ||
+                document.querySelector('[data-user]') ||
+                document.querySelector('.user-info') ||
+                document.querySelector('.logged-in')
+              );
+            },
+            
+            // 保存登录状态
+            saveLoginState: function() {
+              if (this.isInTelegram()) {
+                window.parent.postMessage({
+                  type: 'save_login_state',
+                  url: window.location.href
+                }, '*');
+                console.log('登录状态已保存到Telegram应用');
+              }
+            },
+            
+            // 清除登录状态
+            clearLoginState: function() {
+              if (this.isInTelegram()) {
+                window.parent.postMessage({
+                  type: 'clear_login_state'
+                }, '*');
+                console.log('登录状态已从Telegram应用清除');
+              }
+            },
+            
+            // 监听登录状态请求
+            init: function() {
+              // 监听来自Telegram的消息
+              window.addEventListener('message', (event) => {
+                if (event.data.type === 'request_login_state') {
                   if (this.isUserLoggedIn()) {
                     this.saveLoginState();
                   }
-                }, 30000); // 每30秒检查一次
-                
-                console.log('K8Play登录状态管理器已初始化');
-              }
-            };
-            
-            // 初始化登录状态管理器
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', () => {
-                window.k8playLoginManager.init();
+                }
               });
-            } else {
-              window.k8playLoginManager.init();
+              
+              // 监听页面变化（用于单页应用）
+              let currentUrl = window.location.href;
+              const observer = new MutationObserver(() => {
+                if (window.location.href !== currentUrl) {
+                  currentUrl = window.location.href;
+                  if (this.isUserLoggedIn()) {
+                    this.saveLoginState();
+                  }
+                  
+                  // 发送导航变化事件到Telegram应用
+                  if (this.isInTelegram()) {
+                    window.parent.postMessage({
+                      type: 'navigation_change',
+                      url: window.location.href
+                    }, '*');
+                    
+                    // 检查是否在外部游戏域名
+                    const isExternal = window.location.hostname !== 'k8play7.com' && 
+                                     !window.location.hostname.endsWith('.k8play7.com');
+                    window.parent.postMessage({
+                      type: 'external_domain_check',
+                      isExternal: isExternal,
+                      url: window.location.href
+                    }, '*');
+                  }
+                }
+              });
+              observer.observe(document.body, { childList: true, subtree: true });
+              
+              // 监听pushState和replaceState（SPA路由变化）
+              const originalPushState = history.pushState;
+              const originalReplaceState = history.replaceState;
+              
+              history.pushState = function() {
+                originalPushState.apply(this, arguments);
+                if (window.k8playLoginManager.isInTelegram()) {
+                  window.parent.postMessage({
+                    type: 'navigation_change',
+                    url: window.location.href
+                  }, '*');
+                }
+              };
+              
+              history.replaceState = function() {
+                originalReplaceState.apply(this, arguments);
+                if (window.k8playLoginManager.isInTelegram()) {
+                  window.parent.postMessage({
+                    type: 'navigation_change',
+                    url: window.location.href
+                  }, '*');
+                }
+              };
+              
+              // 监听popstate事件（浏览器前进后退）
+              window.addEventListener('popstate', () => {
+                if (window.k8playLoginManager.isInTelegram()) {
+                  window.parent.postMessage({
+                    type: 'navigation_change',
+                    url: window.location.href
+                  }, '*');
+                }
+              });
+              
+              // 监听表单提交（登录表单）
+              document.addEventListener('submit', (event) => {
+                const form = event.target;
+                if (form.action && form.action.includes('login')) {
+                  // 延迟检查登录状态
+                  setTimeout(() => {
+                    if (this.isUserLoggedIn()) {
+                      this.saveLoginState();
+                    }
+                  }, 1000);
+                }
+              });
+              
+              // 监听AJAX请求完成
+              const originalXHROpen = XMLHttpRequest.prototype.open;
+              XMLHttpRequest.prototype.open = function() {
+                this.addEventListener('load', function() {
+                  if (this.responseURL && this.responseURL.includes('login')) {
+                    setTimeout(() => {
+                      if (window.k8playLoginManager.isUserLoggedIn()) {
+                        window.k8playLoginManager.saveLoginState();
+                      }
+                    }, 500);
+                  }
+                });
+                originalXHROpen.apply(this, arguments);
+              };
+              
+              // 监听fetch请求
+              const originalFetch = window.fetch;
+              window.fetch = function() {
+                return originalFetch.apply(this, arguments).then(response => {
+                  if (response.url && response.url.includes('login')) {
+                    setTimeout(() => {
+                      if (window.k8playLoginManager.isUserLoggedIn()) {
+                        window.k8playLoginManager.saveLoginState();
+                      }
+                    }, 500);
+                  }
+                  return response;
+                });
+              };
+              
+              // 定期检查登录状态
+              setInterval(() => {
+                if (this.isUserLoggedIn()) {
+                  this.saveLoginState();
+                }
+              }, 30000); // 每30秒检查一次
+              
+              console.log('K8Play登录状态管理器已初始化');
             }
-            
-            // 添加退出登录监听
-            document.addEventListener('click', (event) => {
-              const target = event.target;
-              if (target.textContent.toLowerCase().includes('logout') ||
-                  target.textContent.toLowerCase().includes('退出') ||
-                  target.textContent.toLowerCase().includes('登出') ||
-                  target.href && target.href.includes('logout')) {
-                setTimeout(() => {
-                  window.k8playLoginManager.clearLoginState();
-                }, 500);
-              }
+          };
+          
+          // 初始化登录状态管理器
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+              window.k8playLoginManager.init();
             });
-          })();
-        `;
-        
+          } else {
+            window.k8playLoginManager.init();
+          }
+          
+          // 添加退出登录监听
+          document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (target.textContent.toLowerCase().includes('logout') ||
+                target.textContent.toLowerCase().includes('退出') ||
+                target.textContent.toLowerCase().includes('登出') ||
+                target.href && target.href.includes('logout')) {
+              setTimeout(() => {
+                window.k8playLoginManager.clearLoginState();
+              }, 500);
+            }
+          });
+        })();
+      `;
+      
+      try {
         // 尝试注入脚本到游戏页面
         if (gameFrame.contentWindow) {
           const scriptElement = gameFrame.contentWindow.document.createElement('script');
-          scriptElement.textContent = script;
+          scriptElement.textContent = loginScript;
           gameFrame.contentWindow.document.head.appendChild(scriptElement);
           console.log('登录状态管理脚本已注入到游戏页面');
         }
       } catch (e) {
         console.log('注入脚本失败（跨域限制）:', e.message);
         // 如果无法直接注入，通过postMessage发送脚本
-        gameFrame.contentWindow.postMessage({
-          type: 'inject_login_script',
-          script: script
-        }, baseGameUrl);
+        try {
+          gameFrame.contentWindow.postMessage({
+            type: 'inject_login_script',
+            script: loginScript
+          }, '*');
+        } catch (postError) {
+          console.log('postMessage发送脚本失败:', postError.message);
+        }
       }
     }
 
     // 监听来自游戏的消息
     window.addEventListener('message', (event) => {
-      if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
+      // 放宽origin检查，允许来自任何域名的消息
+      // if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
       
       // 处理游戏发来的消息
       if (event.data.type === 'game_event') {
@@ -644,30 +669,42 @@
             break;
           case 'show_confirm':
             tg.showConfirm(event.data.message, (confirmed) => {
-              gameFrame.contentWindow.postMessage({
-                type: 'tg_confirm_result',
-                id: event.data.id,
-                confirmed: confirmed
-              }, baseGameUrl);
+              try {
+                gameFrame.contentWindow.postMessage({
+                  type: 'tg_confirm_result',
+                  id: event.data.id,
+                  confirmed: confirmed
+                }, '*');
+              } catch (e) {
+                console.log('发送确认结果失败:', e.message);
+              }
             });
             break;
           case 'show_popup':
             if (event.data.params) {
               tg.showPopup(event.data.params, (buttonId) => {
-                gameFrame.contentWindow.postMessage({
-                  type: 'tg_popup_result',
-                  id: event.data.id,
-                  buttonId: buttonId
-                }, baseGameUrl);
+                try {
+                  gameFrame.contentWindow.postMessage({
+                    type: 'tg_popup_result',
+                    id: event.data.id,
+                    buttonId: buttonId
+                  }, '*');
+                } catch (e) {
+                  console.log('发送弹窗结果失败:', e.message);
+                }
               });
             }
             break;
           case 'request_contact':
             tg.requestContact((shared) => {
-              gameFrame.contentWindow.postMessage({
-                type: 'tg_contact_result',
-                shared: shared
-              }, baseGameUrl);
+              try {
+                gameFrame.contentWindow.postMessage({
+                  type: 'tg_contact_result',
+                  shared: shared
+                }, '*');
+              } catch (e) {
+                console.log('发送联系人结果失败:', e.message);
+              }
             });
             break;
           case 'haptic':
@@ -711,10 +748,14 @@
             }
             break;
           case 'get_device_info':
-            gameFrame.contentWindow.postMessage({
-              type: 'device_info',
-              data: getDeviceInfo()
-            }, baseGameUrl);
+            try {
+              gameFrame.contentWindow.postMessage({
+                type: 'device_info',
+                data: getDeviceInfo()
+              }, '*');
+            } catch (e) {
+              console.log('发送设备信息失败:', e.message);
+            }
             break;
           case 'enable_closing_confirmation':
             tg.enableClosingConfirmation();
@@ -730,40 +771,56 @@
               tg.showScanQrPopup({
                 text: event.data.text || 'Scan QR Code'
               }, (text) => {
-                gameFrame.contentWindow.postMessage({
-                  type: 'qr_scan_result',
-                  text: text || null
-                }, baseGameUrl);
+                try {
+                  gameFrame.contentWindow.postMessage({
+                    type: 'qr_scan_result',
+                    text: text || null
+                  }, '*');
+                } catch (e) {
+                  console.log('发送二维码扫描结果失败:', e.message);
+                }
               });
             }
             break;
           case 'request_write_access':
             if (tg.requestWriteAccess) {
               tg.requestWriteAccess((granted) => {
-                gameFrame.contentWindow.postMessage({
-                  type: 'write_access_result',
-                  granted: granted
-                }, baseGameUrl);
+                try {
+                  gameFrame.contentWindow.postMessage({
+                    type: 'write_access_result',
+                    granted: granted
+                  }, '*');
+                } catch (e) {
+                  console.log('发送写入权限结果失败:', e.message);
+                }
               });
             }
             break;
           case 'request_phone':
             if (tg.requestContact) {
               tg.requestContact((result) => {
-                gameFrame.contentWindow.postMessage({
-                  type: 'phone_result',
-                  result: result
-                }, baseGameUrl);
+                try {
+                  gameFrame.contentWindow.postMessage({
+                    type: 'phone_result',
+                    result: result
+                  }, '*');
+                } catch (e) {
+                  console.log('发送手机号结果失败:', e.message);
+                }
               });
             }
             break;
           case 'open_invoice':
             if (event.data.url && tg.openInvoice) {
               tg.openInvoice(event.data.url, (status) => {
-                gameFrame.contentWindow.postMessage({
-                  type: 'invoice_status',
-                  status: status
-                }, baseGameUrl);
+                try {
+                  gameFrame.contentWindow.postMessage({
+                    type: 'invoice_status',
+                    status: status
+                  }, '*');
+                } catch (e) {
+                  console.log('发送发票状态失败:', e.message);
+                }
               });
             }
             break;
@@ -794,7 +851,9 @@
           
           // 如果有多个页面，显示返回按钮
           if (navigationHistory.length > 1) {
-            tg.BackButton.show();
+            if (tg.BackButton && tg.BackButton.show) {
+              tg.BackButton.show();
+            }
             backButton.style.display = 'flex';
           }
           
@@ -890,7 +949,8 @@
     function enhancedNavigationTracking() {
       // 监听来自K8Play的导航事件
       window.addEventListener('message', (event) => {
-        if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
+        // 放宽origin检查，允许来自任何域名的消息
+        // if (event.origin !== baseGameUrl.replace(/\/$/, '')) return;
         
                  if (event.data.type === 'navigation_change') {
            const newUrl = event.data.url;
@@ -902,7 +962,9 @@
              
              // 显示返回按钮
              if (navigationHistory.length > 1) {
-               tg.BackButton.show();
+               if (tg.BackButton && tg.BackButton.show) {
+                 tg.BackButton.show();
+               }
                backButton.style.display = 'flex';
              }
              
@@ -947,7 +1009,9 @@
         
         // 如果回到第一页，隐藏返回按钮
         if (currentHistoryIndex === 0) {
-          tg.BackButton.hide();
+          if (tg.BackButton && tg.BackButton.hide) {
+            tg.BackButton.hide();
+          }
           backButton.style.display = 'none';
         }
         
@@ -965,8 +1029,12 @@
       }
     }
 
-    // Telegram返回按钮点击
-    tg.BackButton.onClick(handleBack);
+    // Telegram返回按钮点击（版本兼容）
+    if (tg.BackButton && tg.BackButton.onClick) {
+      tg.BackButton.onClick(handleBack);
+    } else {
+      console.log('BackButton not supported in this Telegram version');
+    }
     
     // 浮动返回按钮点击
     backButton.addEventListener('click', handleBack);
@@ -979,6 +1047,15 @@
     });
 
     window.addEventListener('load', loadGame);
+    
+    // 全局错误处理
+    window.addEventListener('error', (event) => {
+      console.log('全局错误:', event.error);
+    });
+    
+    window.addEventListener('unhandledrejection', (event) => {
+      console.log('未处理的Promise拒绝:', event.reason);
+    });
   </script>
 </body>
 </html>

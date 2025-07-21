@@ -45,7 +45,7 @@
       top: 50%;
       right: 10px;
       transform: translateY(-50%);
-      display: none;
+      display: flex;
       flex-direction: column;
       gap: 10px;
       z-index: 1001;
@@ -103,7 +103,7 @@
     /* 收起/展开切换按钮 */
     .shortcut-toggle {
       position: fixed;
-      top: 50%;
+      top: calc(50% + 120px);
       right: -5px;
       transform: translateY(-50%);
       width: 32px;
@@ -111,7 +111,7 @@
       border-radius: 50% 0 0 50%;
       background: linear-gradient(135deg, #2996E4, #1976D2);
       border: none;
-      display: none;
+      display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
@@ -1342,24 +1342,8 @@
     let lastShortcutState = null;
     
     function toggleShortcutButtons(show) {
-      if (show !== lastShortcutState) {
-        lastShortcutState = show;
-        if (show) {
-          // 显示切换按钮，快捷按钮默认收起
-          shortcutToggle.style.display = 'flex';
-          shortcutButtons.style.display = 'flex';
-          
-          // 设置默认收起状态
-          if (isShortcutCollapsed) {
-            shortcutButtons.classList.add('collapsed');
-            shortcutToggle.classList.add('expanded');
-          }
-        } else {
-          // 隐藏所有快捷按钮
-          shortcutButtons.style.display = 'none';
-          shortcutToggle.style.display = 'none';
-        }
-      }
+      // 快捷按钮现在始终显示，不再需要根据监测结果显示/隐藏
+      console.log('快捷按钮始终显示，忽略监测结果:', show);
     }
     
     // 快捷按钮收起/展开功能
@@ -1436,6 +1420,21 @@
           }
         });
       });
+    }
+    
+    // 初始化快捷按钮显示（始终显示）
+    function initShortcutButtonsDisplay() {
+      // 确保快捷按钮和切换按钮都显示
+      shortcutButtons.style.display = 'flex';
+      shortcutToggle.style.display = 'flex';
+      
+      // 设置默认收起状态
+      if (isShortcutCollapsed) {
+        shortcutButtons.classList.add('collapsed');
+        shortcutToggle.classList.add('expanded');
+      }
+      
+      console.log('快捷按钮已初始化为始终显示状态');
     }
 
     // 增强的导航跟踪（处理SPA应用）
@@ -1549,6 +1548,11 @@
     });
 
     window.addEventListener('load', loadGame);
+    
+    // 立即显示快捷按钮（不需要监测）
+    document.addEventListener('DOMContentLoaded', () => {
+      initShortcutButtonsDisplay();
+    });
     
     // 全局错误处理
     window.addEventListener('error', (event) => {

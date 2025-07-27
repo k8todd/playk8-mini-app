@@ -1,2 +1,2 @@
-# playk8-mini-app-ja
-PlayK8 Telegram Mini App Japan
+# playk8-mini-app
+PlayK8 Telegram Mini App
